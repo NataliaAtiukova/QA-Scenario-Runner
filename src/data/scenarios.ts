@@ -1,1 +1,1 @@
-export { allTests, fullScenarios, smokeTests } from '../locales'
+export { fullScenarios } from '../locales'

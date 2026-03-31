@@ -11,7 +11,8 @@
       "smoke": "Смоки",
       "scenarios": "Сценарии",
       "runner": "Выполнение",
-      "bugs": "Баг-репорты"
+      "bugs": "Баг-репорты",
+      "smokeEditor": "Редактор смоков"
     },
     "actions": {
       "run": "Запустить",
@@ -26,7 +27,23 @@
       "saveBug": "Сохранить баг и тикет",
       "close": "Закрыть",
       "copyTicket": "Скопировать тикет",
-      "runSelected": "Запустить выбранный тест"
+      "runSelected": "Запустить выбранный тест",
+      "createTemplate": "Создать смок",
+      "duplicateTemplate": "Дублировать",
+      "deleteTemplate": "Удалить",
+      "saveTemplate": "Сохранить как шаблон",
+      "addStep": "Добавить шаг",
+      "deleteStep": "Удалить шаг",
+      "moveStepUp": "Шаг вверх",
+      "moveStepDown": "Шаг вниз",
+      "addCheck": "Добавить проверку",
+      "deleteCheck": "Удалить проверку",
+      "importJson": "Импорт JSON",
+      "exportJson": "Экспорт JSON",
+      "importExcel": "Импорт Excel",
+      "exportExcel": "Экспорт Excel",
+      "restoreBackup": "Восстановить бэкап",
+      "exportBackup": "Экспорт бэкапа"
     },
     "labels": {
       "step": "Шаг",
@@ -41,7 +58,10 @@
       "minutes": "мин",
       "steps": "шагов",
       "typeSmoke": "Смок",
-      "typeScenario": "Сценарий"
+      "typeScenario": "Сценарий",
+      "templateName": "Название шаблона",
+      "stepName": "Название шага",
+      "checkName": "Проверка"
     },
     "statuses": {
       "not_started": "Не пройдено",
@@ -57,7 +77,16 @@
       "smokeTotal": "Смоки: {{passed}}/{{total}} Ок",
       "criticalSmoke": "КРИТИЧНО: есть проваленные смоки",
       "noCriticalSmoke": "Критических провалов нет",
-      "smokeQueue": "Смок {{current}}/{{total}}"
+      "smokeQueue": "Смок {{current}}/{{total}}",
+      "editorHint": "Все изменения смоков сохраняются автоматически.",
+      "selectTemplate": "Выберите шаблон или создайте новый.",
+      "saved": "Шаблон сохранен.",
+      "importSuccess": "Импорт выполнен успешно.",
+      "restoreSuccess": "Бэкап восстановлен.",
+      "noBackup": "Бэкап не найден.",
+      "validationTitle": "Ошибка валидации:",
+      "emptyStepName": "Название шага не может быть пустым.",
+      "emptyCheck": "Проверка не может быть пустой."
     },
     "placeholders": {
       "actual": "Что произошло по факту?",

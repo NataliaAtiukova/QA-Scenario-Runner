@@ -1,5 +1,5 @@
 import ru from './ru.json'
-import type { RunStatus, StepStatus, TestDefinition } from '../types'
+import type { RunStatus, SmokeTemplateFile, StepStatus, TestDefinition } from '../types'
 
 export type ThemeMode = 'light' | 'dark'
 
@@ -16,6 +16,16 @@ export function getStatusLabel(status: RunStatus | StepStatus): string {
   return locale.ui.statuses[status]
 }
 
-export const smokeTests = locale.tests.smoke as TestDefinition[]
 export const fullScenarios = locale.tests.scenarios as TestDefinition[]
-export const allTests = [...smokeTests, ...fullScenarios]
+
+export const defaultSmokeTemplateFile: SmokeTemplateFile = {
+  smokeTests: (locale.tests.smoke as TestDefinition[]).map((test) => ({
+    id: test.id,
+    name: test.name,
+    steps: test.steps.map((step) => ({
+      id: step.id,
+      title: step.title,
+      checks: step.checks,
+    })),
+  })),
+}

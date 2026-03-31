@@ -3,16 +3,36 @@ import './App.css'
 import { BugList } from './components/BugList'
 import { BugReportForm } from './components/BugReportForm'
 import { ScenarioRunner } from './components/ScenarioRunner'
+import { SmokeEditor } from './components/SmokeEditor'
 import { SmokeSummary } from './components/SmokeSummary'
 import { TestCard } from './components/TestCard'
-import { allTests, fullScenarios, locale, localize, smokeTests, type ThemeMode } from './locales'
+import { defaultSmokeTemplateFile, fullScenarios, locale, localize, type ThemeMode } from './locales'
 import { useLocalStorageState } from './hooks/useLocalStorageState'
-import type { BugReport, RunResult, StepExecution, StepStatus, TestDefinition } from './types'
+import type {
+  BugReport,
+  RunResult,
+  SmokeTemplate,
+  SmokeTemplateFile,
+  StepExecution,
+  StepStatus,
+  TestDefinition,
+} from './types'
 import { computeRunStatus, createRunResult } from './utils/runState'
+import {
+  cloneTemplate,
+  createTemplate,
+  exportTemplatesAsExcel,
+  exportTemplatesAsJson,
+  importTemplatesFromExcel,
+  templatesToTests,
+  validateSmokeTemplateFile,
+} from './utils/smokeTemplates'
 
 const RUNS_STORAGE_KEY = 'qa-runner:runs'
 const BUGS_STORAGE_KEY = 'qa-runner:bugs'
 const THEME_STORAGE_KEY = 'qa-runner:theme'
+const SMOKE_TEMPLATES_STORAGE_KEY = 'qa-runner:smoke-templates'
+const SMOKE_TEMPLATES_BACKUP_KEY = 'qa-runner:smoke-templates-backup'
 
 interface BugContext {
   testId: string
@@ -29,26 +49,130 @@ function createStepExecution(step: TestDefinition['steps'][number]): StepExecuti
   }
 }
 
+function downloadText(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadArrayBuffer(filename: string, content: ArrayBuffer) {
+  const blob = new Blob([content], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 function App() {
   const [runs, setRuns] = useLocalStorageState<Record<string, RunResult>>(RUNS_STORAGE_KEY, {})
   const [bugs, setBugs] = useLocalStorageState<BugReport[]>(BUGS_STORAGE_KEY, [])
   const [theme, setTheme] = useLocalStorageState<ThemeMode>(THEME_STORAGE_KEY, 'light')
 
-  const [selectedTestId, setSelectedTestId] = useState<string | null>(allTests[0]?.id ?? null)
+  const [smokeTemplates, setSmokeTemplates] = useState<SmokeTemplate[]>(defaultSmokeTemplateFile.smokeTests)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    defaultSmokeTemplateFile.smokeTests[0]?.id ?? null,
+  )
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
   const [activeSmokeQueueIndex, setActiveSmokeQueueIndex] = useState<number | null>(null)
   const [bugContext, setBugContext] = useState<BugContext | null>(null)
 
+  const smokeTests = useMemo(() => templatesToTests(smokeTemplates), [smokeTemplates])
+  const allTests = useMemo(() => [...smokeTests, ...fullScenarios], [smokeTests])
   const testMap = useMemo(
     () => allTests.reduce<Record<string, TestDefinition>>((acc, test) => ({ ...acc, [test.id]: test }), {}),
-    [],
+    [allTests],
   )
-
-  const activeTest = selectedTestId ? testMap[selectedTestId] : null
-  const activeRun = activeTest ? runs[activeTest.id] : null
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  useEffect(() => {
+    let ignore = false
+
+    const loadTemplates = async () => {
+      try {
+        const response = await fetch('/data/smoke-tests.json', { cache: 'no-store' })
+        if (response.ok) {
+          const parsed = (await response.json()) as SmokeTemplateFile
+          const validation = validateSmokeTemplateFile(parsed)
+          if (validation.valid && validation.file && !ignore) {
+            setSmokeTemplates(validation.file.smokeTests)
+            setSelectedTemplateId(validation.file.smokeTests[0]?.id ?? null)
+            localStorage.setItem(SMOKE_TEMPLATES_STORAGE_KEY, JSON.stringify(validation.file))
+            return
+          }
+        }
+      } catch {
+        // fallback to local/default below
+      }
+
+      const localRaw = localStorage.getItem(SMOKE_TEMPLATES_STORAGE_KEY)
+      if (localRaw) {
+        try {
+          const parsed = JSON.parse(localRaw) as SmokeTemplateFile
+          const validation = validateSmokeTemplateFile(parsed)
+          if (validation.valid && validation.file && !ignore) {
+            setSmokeTemplates(validation.file.smokeTests)
+            setSelectedTemplateId(validation.file.smokeTests[0]?.id ?? null)
+            return
+          }
+        } catch {
+          // fallback to defaults below
+        }
+      }
+
+      if (!ignore) {
+        setSmokeTemplates(defaultSmokeTemplateFile.smokeTests)
+        setSelectedTemplateId(defaultSmokeTemplateFile.smokeTests[0]?.id ?? null)
+      }
+    }
+
+    loadTemplates().catch(() => undefined)
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const validation = validateSmokeTemplateFile({ smokeTests: smokeTemplates })
+    setValidationErrors(validation.valid ? [] : validation.errors)
+    localStorage.setItem(SMOKE_TEMPLATES_STORAGE_KEY, JSON.stringify({ smokeTests }))
+  }, [smokeTemplates])
+
+  useEffect(() => {
+    if (allTests.length === 0) {
+      setSelectedTestId(null)
+      return
+    }
+
+    if (!selectedTestId || !testMap[selectedTestId]) {
+      setSelectedTestId(allTests[0].id)
+    }
+  }, [allTests, selectedTestId, testMap])
+
+  const activeTest = selectedTestId ? testMap[selectedTestId] : null
+  const activeRun = activeTest ? runs[activeTest.id] : null
+
+  const setTemplatesWithBackup = (updater: (prev: SmokeTemplate[]) => SmokeTemplate[]) => {
+    setSmokeTemplates((previous) => {
+      localStorage.setItem(SMOKE_TEMPLATES_BACKUP_KEY, JSON.stringify({ smokeTests: previous }))
+      const next = updater(previous)
+      localStorage.setItem(SMOKE_TEMPLATES_STORAGE_KEY, JSON.stringify({ smokeTests: next }))
+      return next
+    })
+  }
 
   const updateRun = (test: TestDefinition, updater: (run: RunResult) => RunResult) => {
     setRuns((previous) => {
@@ -69,7 +193,6 @@ function App() {
 
   const startRun = (testId: string, stepIndex = 0) => {
     const test = testMap[testId]
-
     if (!test) {
       return
     }
@@ -85,14 +208,12 @@ function App() {
 
   const rerunFromFailedStep = (testId: string, stepIndex: number) => {
     const test = testMap[testId]
-
     if (!test) {
       return
     }
 
     setRuns((previous) => {
       const existing = previous[test.id]
-
       if (!existing) {
         return {
           ...previous,
@@ -101,7 +222,6 @@ function App() {
       }
 
       const nextExecutions = { ...existing.stepExecutions }
-
       test.steps.forEach((step, index) => {
         if (index >= stepIndex) {
           nextExecutions[step.id] = createStepExecution(step)
@@ -125,6 +245,10 @@ function App() {
   }
 
   const runAllSmokeTests = () => {
+    if (smokeTests.length === 0) {
+      return
+    }
+
     setActiveSmokeQueueIndex(0)
     startRun(smokeTests[0].id)
   }
@@ -135,7 +259,6 @@ function App() {
     }
 
     const nextIndex = activeSmokeQueueIndex + 1
-
     if (nextIndex >= smokeTests.length) {
       setActiveSmokeQueueIndex(null)
       return
@@ -153,7 +276,6 @@ function App() {
     updateRun(activeTest, (current) => {
       const delta = direction === 'next' ? 1 : -1
       const nextIndex = Math.max(0, Math.min(current.currentStepIndex + delta, activeTest.steps.length - 1))
-
       return {
         ...current,
         currentStepIndex: nextIndex,
@@ -168,7 +290,6 @@ function App() {
 
     updateRun(activeTest, (current) => {
       const stepExecution = current.stepExecutions[stepId]
-
       if (!stepExecution) {
         return current
       }
@@ -196,7 +317,6 @@ function App() {
 
     updateRun(activeTest, (current) => {
       const stepExecution = current.stepExecutions[stepId]
-
       if (!stepExecution) {
         return current
       }
@@ -230,31 +350,102 @@ function App() {
     }
 
     setBugs((previous) => [...previous, bug])
-
     const test = testMap[payload.testId]
-
-    if (test) {
-      updateRun(test, (current) => {
-        const stepExecution = current.stepExecutions[payload.stepId]
-
-        if (!stepExecution) {
-          return current
-        }
-
-        return {
-          ...current,
-          stepExecutions: {
-            ...current.stepExecutions,
-            [payload.stepId]: {
-              ...stepExecution,
-              bugId: bug.id,
-            },
-          },
-        }
-      })
+    if (!test) {
+      setBugContext(null)
+      return
     }
 
+    updateRun(test, (current) => {
+      const stepExecution = current.stepExecutions[payload.stepId]
+      if (!stepExecution) {
+        return current
+      }
+
+      return {
+        ...current,
+        stepExecutions: {
+          ...current.stepExecutions,
+          [payload.stepId]: {
+            ...stepExecution,
+            bugId: bug.id,
+          },
+        },
+      }
+    })
+
     setBugContext(null)
+  }
+
+  const setSuccessNotice = (message: string) => {
+    setNotice(message)
+    window.setTimeout(() => setNotice(null), 2000)
+  }
+
+  const handleImportJson = async (file: File) => {
+    const text = await file.text()
+    const parsed = JSON.parse(text) as SmokeTemplateFile
+    const validation = validateSmokeTemplateFile(parsed)
+    if (!validation.valid || !validation.file) {
+      setValidationErrors(validation.errors)
+      return
+    }
+
+    setTemplatesWithBackup(() => validation.file!.smokeTests)
+    setSelectedTemplateId(validation.file.smokeTests[0]?.id ?? null)
+    setSuccessNotice(locale.ui.messages.importSuccess)
+  }
+
+  const handleImportExcel = async (file: File) => {
+    const buffer = await file.arrayBuffer()
+    const parsed = importTemplatesFromExcel(buffer)
+    const validation = validateSmokeTemplateFile(parsed)
+    if (!validation.valid || !validation.file) {
+      setValidationErrors(validation.errors)
+      return
+    }
+
+    setTemplatesWithBackup(() => validation.file!.smokeTests)
+    setSelectedTemplateId(validation.file.smokeTests[0]?.id ?? null)
+    setSuccessNotice(locale.ui.messages.importSuccess)
+  }
+
+  const handleRestoreBackup = () => {
+    const raw = localStorage.getItem(SMOKE_TEMPLATES_BACKUP_KEY)
+    if (!raw) {
+      setNotice(locale.ui.messages.noBackup)
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as SmokeTemplateFile
+      const validation = validateSmokeTemplateFile(parsed)
+      if (!validation.valid || !validation.file) {
+        setValidationErrors(validation.errors)
+        return
+      }
+
+      setTemplatesWithBackup(() => validation.file!.smokeTests)
+      setSelectedTemplateId(validation.file.smokeTests[0]?.id ?? null)
+      setSuccessNotice(locale.ui.messages.restoreSuccess)
+    } catch {
+      setNotice(locale.ui.messages.noBackup)
+    }
+  }
+
+  const handleSaveTemplate = () => {
+    const validation = validateSmokeTemplateFile({ smokeTests: smokeTemplates })
+    if (!validation.valid) {
+      setValidationErrors(validation.errors)
+      return
+    }
+    setSuccessNotice(locale.ui.messages.saved)
+  }
+
+  const updateTemplateAt = (templateId: string, updater: (template: SmokeTemplate) => SmokeTemplate) => {
+    setTemplatesWithBackup((previous) =>
+      previous.map((template) => (template.id === templateId ? updater(template) : template)),
+    )
   }
 
   const activeStep = activeTest && activeRun ? activeTest.steps[activeRun.currentStepIndex] : null
@@ -345,7 +536,6 @@ function App() {
                   if (!activeStep) {
                     return
                   }
-
                   setBugContext({
                     testId: activeTest.id,
                     stepId: activeStep.id,
@@ -372,6 +562,160 @@ function App() {
               )}
             </section>
           )}
+
+          <SmokeEditor
+            templates={smokeTemplates}
+            selectedTemplateId={selectedTemplateId}
+            validationErrors={validationErrors}
+            notice={notice}
+            onSelectTemplate={setSelectedTemplateId}
+            onCreateTemplate={() => {
+              const next = createTemplate()
+              setTemplatesWithBackup((previous) => [...previous, next])
+              setSelectedTemplateId(next.id)
+            }}
+            onDuplicateTemplate={(id) => {
+              const original = smokeTemplates.find((template) => template.id === id)
+              if (!original) {
+                return
+              }
+              const copy = cloneTemplate(original)
+              setTemplatesWithBackup((previous) => [...previous, copy])
+              setSelectedTemplateId(copy.id)
+            }}
+            onDeleteTemplate={(id) => {
+              setTemplatesWithBackup((previous) => previous.filter((template) => template.id !== id))
+              setSelectedTemplateId((current) => {
+                if (current !== id) {
+                  return current
+                }
+                const next = smokeTemplates.find((template) => template.id !== id)
+                return next?.id ?? null
+              })
+            }}
+            onSaveTemplate={handleSaveTemplate}
+            onUpdateTemplateName={(id, name) => {
+              updateTemplateAt(id, (template) => ({ ...template, name }))
+            }}
+            onAddStep={(id) => {
+              updateTemplateAt(id, (template) => ({
+                ...template,
+                steps: [
+                  ...template.steps,
+                  {
+                    id: `step-${Date.now()}`,
+                    title: `Шаг ${template.steps.length + 1}`,
+                    checks: ['Новая проверка'],
+                  },
+                ],
+              }))
+            }}
+            onDeleteStep={(id, stepIndex) => {
+              updateTemplateAt(id, (template) => {
+                if (template.steps.length === 1) {
+                  return template
+                }
+                return {
+                  ...template,
+                  steps: template.steps.filter((_, index) => index !== stepIndex),
+                }
+              })
+            }}
+            onMoveStep={(id, stepIndex, direction) => {
+              updateTemplateAt(id, (template) => {
+                const nextIndex = direction === 'up' ? stepIndex - 1 : stepIndex + 1
+                if (nextIndex < 0 || nextIndex >= template.steps.length) {
+                  return template
+                }
+                const nextSteps = [...template.steps]
+                const current = nextSteps[stepIndex]
+                nextSteps[stepIndex] = nextSteps[nextIndex]
+                nextSteps[nextIndex] = current
+                return {
+                  ...template,
+                  steps: nextSteps,
+                }
+              })
+            }}
+            onUpdateStepTitle={(id, stepIndex, title) => {
+              updateTemplateAt(id, (template) => ({
+                ...template,
+                steps: template.steps.map((step, index) =>
+                  index === stepIndex
+                    ? {
+                        ...step,
+                        title,
+                      }
+                    : step,
+                ),
+              }))
+            }}
+            onAddCheck={(id, stepIndex) => {
+              updateTemplateAt(id, (template) => ({
+                ...template,
+                steps: template.steps.map((step, index) =>
+                  index === stepIndex
+                    ? {
+                        ...step,
+                        checks: [...step.checks, 'Новая проверка'],
+                      }
+                    : step,
+                ),
+              }))
+            }}
+            onUpdateCheck={(id, stepIndex, checkIndex, value) => {
+              updateTemplateAt(id, (template) => ({
+                ...template,
+                steps: template.steps.map((step, index) =>
+                  index === stepIndex
+                    ? {
+                        ...step,
+                        checks: step.checks.map((check, currentCheckIndex) =>
+                          currentCheckIndex === checkIndex ? value : check,
+                        ),
+                      }
+                    : step,
+                ),
+              }))
+            }}
+            onDeleteCheck={(id, stepIndex, checkIndex) => {
+              updateTemplateAt(id, (template) => ({
+                ...template,
+                steps: template.steps.map((step, index) =>
+                  index === stepIndex
+                    ? {
+                        ...step,
+                        checks:
+                          step.checks.length === 1
+                            ? step.checks
+                            : step.checks.filter((_, currentCheckIndex) => currentCheckIndex !== checkIndex),
+                      }
+                    : step,
+                ),
+              }))
+            }}
+            onImportJson={(file) => {
+              handleImportJson(file).catch(() => undefined)
+            }}
+            onExportJson={() => {
+              downloadText('smoke-tests.json', exportTemplatesAsJson(smokeTemplates))
+            }}
+            onImportExcel={(file) => {
+              handleImportExcel(file).catch(() => undefined)
+            }}
+            onExportExcel={() => {
+              downloadArrayBuffer('smoke-tests.xlsx', exportTemplatesAsExcel(smokeTemplates))
+            }}
+            onRestoreBackup={handleRestoreBackup}
+            onExportBackup={() => {
+              const backup = localStorage.getItem(SMOKE_TEMPLATES_BACKUP_KEY)
+              if (!backup) {
+                setNotice(locale.ui.messages.noBackup)
+                return
+              }
+              downloadText('smoke-tests.backup.json', backup)
+            }}
+          />
 
           <BugList bugs={bugs} />
         </section>

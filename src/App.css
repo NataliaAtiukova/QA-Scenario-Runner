@@ -361,6 +361,87 @@ textarea {
   padding: 0.7rem;
 }
 
+.smoke-editor {
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.editor-tools {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.notice {
+  margin: 0;
+  color: var(--ok);
+}
+
+.validation-errors {
+  border: 1px solid var(--fail);
+  padding: 0.55rem;
+  background: var(--surface-muted);
+}
+
+.validation-errors strong {
+  color: var(--fail);
+}
+
+.validation-errors ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+}
+
+.template-list {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.template-chip {
+  font-size: 0.85rem;
+}
+
+.template-chip--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.template-editor,
+.step-editor-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.template-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.step-editor-card {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.check-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.check-row input {
+  flex: 1;
+}
+
 .bug-item {
   border: 1px solid var(--border);
   padding: 0.6rem;

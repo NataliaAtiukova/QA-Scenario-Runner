@@ -7,6 +7,9 @@ Manual UI QA execution tool built with React + TypeScript.
 - Structured test catalog split into:
   - Smoke Tests (critical, fast checks)
   - Full Scenarios (deeper validation flows)
+- Editable smoke templates with dedicated smoke editor
+- JSON/Excel import and export for smoke templates
+- Automatic local persistence + backup restore
 - Step-by-step execution with checklist toggles
 - Pass/Fail step results with failed-step highlighting
 - Auto bug form on fail
@@ -68,3 +71,4 @@ src/
 ## Data
 
 - Source of truth used by UI: `src/locales/ru.json`
+- Smoke templates file path: `/data/smoke-tests.json` (served from `public/data/smoke-tests.json`)

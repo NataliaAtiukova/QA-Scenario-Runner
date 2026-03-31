@@ -58,3 +58,19 @@ export interface TicketPayload {
   timestamp: string
   notes: string
 }
+
+export interface SmokeTemplateStep {
+  id: string
+  title: string
+  checks: string[]
+}
+
+export interface SmokeTemplate {
+  id: string
+  name: string
+  steps: SmokeTemplateStep[]
+}
+
+export interface SmokeTemplateFile {
+  smokeTests: SmokeTemplate[]
+}
