@@ -1,19 +1,20 @@
+import { locale } from '../locales'
 import type { TicketPayload } from '../types'
 
 export function buildTicket(payload: TicketPayload): string {
   return [
-    '### QA Bug Ticket',
+    '### Тикет QA',
     '',
-    `Scenario: ${payload.testName}`,
-    `Step: ${payload.stepName}`,
-    `Timestamp: ${payload.timestamp}`,
+    `${locale.ui.labels.scenarioSmoke}: ${payload.testName}`,
+    `${locale.ui.labels.step}: ${payload.stepName}`,
+    `${locale.ui.labels.timestamp}: ${payload.timestamp}`,
     '',
-    'Reproduction Steps:',
+    'Шаги воспроизведения:',
     ...payload.reproductionSteps.map((step, index) => `${index + 1}. ${step}`),
     '',
-    `Expected: ${payload.expectedResult}`,
-    `Actual: ${payload.actualResult}`,
+    `${locale.ui.labels.expected}: ${payload.expectedResult}`,
+    `${locale.ui.labels.actual}: ${payload.actualResult}`,
     '',
-    `Notes: ${payload.notes || 'N/A'}`,
+    `${locale.ui.labels.notes}: ${payload.notes || '-'}`,
   ].join('\n')
 }

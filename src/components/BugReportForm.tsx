@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { locale } from '../locales'
 import type { BugReport, StepDefinition, TestDefinition } from '../types'
 import { buildTicket } from '../utils/ticket'
 
@@ -27,7 +28,7 @@ export function BugReportForm({ test, step, onSubmit, onCancel }: BugReportFormP
 
   const canSubmit = actualResult.trim().length > 0
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
 
     if (!canSubmit) {
@@ -50,59 +51,59 @@ export function BugReportForm({ test, step, onSubmit, onCancel }: BugReportFormP
 
   return (
     <aside className="bug-form">
-      <h4>Bug Report</h4>
+      <h4>{locale.ui.bugForm.title}</h4>
       <form onSubmit={handleSubmit}>
         <label>
-          Scenario / Smoke
+          {locale.ui.labels.scenarioSmoke}
           <input value={test.name} readOnly />
         </label>
 
         <label>
-          Step
+          {locale.ui.labels.step}
           <input value={step.title} readOnly />
         </label>
 
         <label>
-          Timestamp
+          {locale.ui.labels.timestamp}
           <input value={timestamp} readOnly />
         </label>
 
         <label>
-          Expected result
+          {locale.ui.labels.expected}
           <textarea value={step.expectedResult} readOnly rows={2} />
         </label>
 
         <label>
-          Actual result
+          {locale.ui.labels.actual}
           <textarea
             value={actualResult}
             onChange={(event) => setActualResult(event.target.value)}
             rows={3}
-            placeholder="What happened instead?"
+            placeholder={locale.ui.placeholders.actual}
           />
         </label>
 
         <label>
-          Notes
+          {locale.ui.labels.notes}
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             rows={2}
-            placeholder="Optional context"
+            placeholder={locale.ui.placeholders.notes}
           />
         </label>
 
         <label>
-          Ticket preview
+          {locale.ui.labels.ticketPreview}
           <textarea value={ticket} readOnly rows={10} />
         </label>
 
         <div className="bug-form__actions">
           <button type="submit" disabled={!canSubmit}>
-            Save bug + ticket
+            {locale.ui.actions.saveBug}
           </button>
           <button type="button" className="secondary" onClick={onCancel}>
-            Close
+            {locale.ui.actions.close}
           </button>
         </div>
       </form>

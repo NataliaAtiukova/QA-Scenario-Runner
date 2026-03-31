@@ -1,10 +1,10 @@
+import { getStatusLabel, locale } from '../locales'
 import type { RunResult, StepStatus, TestDefinition } from '../types'
 
 interface ScenarioRunnerProps {
   test: TestDefinition
   run: RunResult
   smokeQueueLabel?: string
-  onBack: () => void
   onToggleCheck: (stepId: string, check: string) => void
   onSetStepStatus: (stepId: string, status: StepStatus) => void
   onNavigateStep: (direction: 'prev' | 'next') => void
@@ -16,7 +16,6 @@ export function ScenarioRunner({
   test,
   run,
   smokeQueueLabel,
-  onBack,
   onToggleCheck,
   onSetStepStatus,
   onNavigateStep,
@@ -37,18 +36,18 @@ export function ScenarioRunner({
     <section className="runner">
       <header className="runner__header">
         <div>
-          <p className="runner__type">{test.type === 'smoke' ? 'Smoke Test' : 'Scenario'}</p>
+          <p className="runner__type">
+            {test.type === 'smoke' ? locale.ui.labels.typeSmoke : locale.ui.labels.typeScenario}
+          </p>
           <h2>{test.name}</h2>
           {smokeQueueLabel && <p className="runner__queue">{smokeQueueLabel}</p>}
         </div>
-        <button className="secondary" onClick={onBack}>
-          Back to list
-        </button>
       </header>
 
       <div className="runner__progress">
         <p>
-          Step {run.currentStepIndex + 1} / {test.steps.length} · {progress}% complete
+          {locale.ui.labels.step} {run.currentStepIndex + 1}/{test.steps.length} · {locale.ui.labels.progress}{' '}
+          {progress}%
         </p>
         <div className="progress-bar">
           <span style={{ width: `${progress}%` }} />
@@ -58,11 +57,14 @@ export function ScenarioRunner({
       <article className={`step-card step-card--${execution.status}`}>
         <header>
           <h3>{step.title}</h3>
-          <span className={`status status--${execution.status}`}>{execution.status}</span>
+          <span className={`status status--${execution.status}`}>{getStatusLabel(execution.status)}</span>
         </header>
 
-        <p className="expected">Expected: {step.expectedResult}</p>
+        <p className="expected">
+          {locale.ui.labels.expected}: {step.expectedResult}
+        </p>
 
+        <h4>{locale.ui.labels.checklist}</h4>
         <div className="checklist">
           {step.checks.map((check) => (
             <label key={check}>
@@ -78,15 +80,15 @@ export function ScenarioRunner({
 
         <div className="step-card__actions">
           <button className="secondary" onClick={() => onSetStepStatus(step.id, 'pending')}>
-            Reset step
+            {locale.ui.actions.resetStep}
           </button>
           <button
             className="pass"
             onClick={() => onSetStepStatus(step.id, 'passed')}
             disabled={!allChecksDone}
-            title={!allChecksDone ? 'Complete all checks first' : 'Mark as passed'}
+            title={!allChecksDone ? locale.ui.messages.completeChecks : locale.ui.actions.pass}
           >
-            Pass
+            {locale.ui.actions.pass}
           </button>
           <button
             className="fail"
@@ -95,7 +97,7 @@ export function ScenarioRunner({
               onOpenBugForCurrentStep()
             }}
           >
-            Fail
+            {locale.ui.actions.fail}
           </button>
         </div>
       </article>
@@ -106,18 +108,18 @@ export function ScenarioRunner({
           onClick={() => onNavigateStep('prev')}
           disabled={run.currentStepIndex === 0}
         >
-          Previous
+          {locale.ui.actions.previous}
         </button>
         <button
           className="secondary"
           onClick={() => onNavigateStep('next')}
           disabled={run.currentStepIndex === test.steps.length - 1}
         >
-          Next
+          {locale.ui.actions.next}
         </button>
         {onNextSmoke && (
-          <button className="next-smoke" onClick={onNextSmoke}>
-            Next smoke test
+          <button className="secondary" onClick={onNextSmoke}>
+            {locale.ui.actions.nextSmoke}
           </button>
         )}
       </footer>

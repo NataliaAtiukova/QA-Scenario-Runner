@@ -1,3 +1,4 @@
+import { locale, localize } from '../locales'
 import type { RunResult } from '../types'
 
 interface SmokeSummaryProps {
@@ -11,8 +12,13 @@ export function SmokeSummary({ runs, smokeIds }: SmokeSummaryProps) {
 
   return (
     <section className={`smoke-summary ${failed > 0 ? 'smoke-summary--critical' : ''}`}>
-      <strong>Smoke Total: {passed}/{smokeIds.length} passed</strong>
-      <span>{failed > 0 ? 'CRITICAL: at least one smoke test failed' : 'No critical smoke failures'}</span>
+      <strong>
+        {localize(locale.ui.messages.smokeTotal, {
+          passed,
+          total: smokeIds.length,
+        })}
+      </strong>
+      <span>{failed > 0 ? locale.ui.messages.criticalSmoke : locale.ui.messages.noCriticalSmoke}</span>
     </section>
   )
 }

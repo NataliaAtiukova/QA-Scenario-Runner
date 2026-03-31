@@ -2,6 +2,10 @@
   color-scheme: light;
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 #root {
   min-height: 100vh;
 }

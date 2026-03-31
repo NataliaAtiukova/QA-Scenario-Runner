@@ -51,19 +51,3 @@ export function getFirstFailedStepIndex(run: RunResult | undefined, test: TestDe
   const index = test.steps.findIndex((step) => run.stepExecutions[step.id]?.status === 'failed')
   return index >= 0 ? index : null
 }
-
-export function formatRunStatus(status: RunStatus): string {
-  if (status === 'not_started') {
-    return 'Not started'
-  }
-
-  if (status === 'in_progress') {
-    return 'In progress'
-  }
-
-  if (status === 'passed') {
-    return 'Passed'
-  }
-
-  return 'Failed'
-}

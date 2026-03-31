@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { BugList } from './components/BugList'
 import { BugReportForm } from './components/BugReportForm'
 import { ScenarioRunner } from './components/ScenarioRunner'
 import { SmokeSummary } from './components/SmokeSummary'
 import { TestCard } from './components/TestCard'
-import { allTests, fullScenarios, smokeTests } from './data/scenarios'
+import { allTests, fullScenarios, locale, localize, smokeTests, type ThemeMode } from './locales'
 import { useLocalStorageState } from './hooks/useLocalStorageState'
 import type { BugReport, RunResult, StepExecution, StepStatus, TestDefinition } from './types'
 import { computeRunStatus, createRunResult } from './utils/runState'
 
 const RUNS_STORAGE_KEY = 'qa-runner:runs'
 const BUGS_STORAGE_KEY = 'qa-runner:bugs'
+const THEME_STORAGE_KEY = 'qa-runner:theme'
 
 interface BugContext {
   testId: string
@@ -31,8 +32,9 @@ function createStepExecution(step: TestDefinition['steps'][number]): StepExecuti
 function App() {
   const [runs, setRuns] = useLocalStorageState<Record<string, RunResult>>(RUNS_STORAGE_KEY, {})
   const [bugs, setBugs] = useLocalStorageState<BugReport[]>(BUGS_STORAGE_KEY, [])
+  const [theme, setTheme] = useLocalStorageState<ThemeMode>(THEME_STORAGE_KEY, 'light')
 
-  const [activeTestId, setActiveTestId] = useState<string | null>(null)
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(allTests[0]?.id ?? null)
   const [activeSmokeQueueIndex, setActiveSmokeQueueIndex] = useState<number | null>(null)
   const [bugContext, setBugContext] = useState<BugContext | null>(null)
 
@@ -41,8 +43,12 @@ function App() {
     [],
   )
 
-  const activeTest = activeTestId ? testMap[activeTestId] : null
+  const activeTest = selectedTestId ? testMap[selectedTestId] : null
   const activeRun = activeTest ? runs[activeTest.id] : null
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
 
   const updateRun = (test: TestDefinition, updater: (run: RunResult) => RunResult) => {
     setRuns((previous) => {
@@ -73,8 +79,8 @@ function App() {
       [test.id]: createRunResult(test, stepIndex),
     }))
 
+    setSelectedTestId(test.id)
     setBugContext(null)
-    setActiveTestId(test.id)
   }
 
   const rerunFromFailedStep = (testId: string, stepIndex: number) => {
@@ -114,8 +120,8 @@ function App() {
       return { ...previous, [test.id]: next }
     })
 
+    setSelectedTestId(test.id)
     setBugContext(null)
-    setActiveTestId(test.id)
   }
 
   const runAllSmokeTests = () => {
@@ -132,7 +138,6 @@ function App() {
 
     if (nextIndex >= smokeTests.length) {
       setActiveSmokeQueueIndex(null)
-      setActiveTestId(null)
       return
     }
 
@@ -252,97 +257,125 @@ function App() {
     setBugContext(null)
   }
 
-  const closeRunner = () => {
-    setActiveTestId(null)
-    setActiveSmokeQueueIndex(null)
-    setBugContext(null)
-  }
-
-  if (activeTest && activeRun) {
-    const activeStep = activeTest.steps[activeRun.currentStepIndex]
-    const showBugForm = bugContext?.testId === activeTest.id && bugContext.stepId === activeStep.id
-
-    return (
-      <main className="app app--runner">
-        <ScenarioRunner
-          test={activeTest}
-          run={activeRun}
-          smokeQueueLabel={
-            activeSmokeQueueIndex !== null
-              ? `Smoke ${activeSmokeQueueIndex + 1}/${smokeTests.length}`
-              : undefined
-          }
-          onBack={closeRunner}
-          onToggleCheck={toggleCheck}
-          onSetStepStatus={setStepStatus}
-          onNavigateStep={navigateStep}
-          onOpenBugForCurrentStep={() => {
-            setBugContext({
-              testId: activeTest.id,
-              stepId: activeStep.id,
-            })
-          }}
-          onNextSmoke={activeSmokeQueueIndex !== null ? openNextSmoke : undefined}
-        />
-
-        {showBugForm && (
-          <BugReportForm
-            test={activeTest}
-            step={activeStep}
-            onSubmit={submitBug}
-            onCancel={() => setBugContext(null)}
-          />
-        )}
-      </main>
-    )
-  }
+  const activeStep = activeTest && activeRun ? activeTest.steps[activeRun.currentStepIndex] : null
+  const showBugForm =
+    activeTest && activeStep && bugContext?.testId === activeTest.id && bugContext.stepId === activeStep.id
 
   return (
     <main className="app">
       <header className="page-header">
-        <h1>QA Scenario Runner</h1>
-        <p>Scenario → Steps → Checks → Result → Bug → Ticket</p>
+        <div>
+          <h1>{locale.ui.appTitle}</h1>
+          <p>{locale.ui.appSubtitle}</p>
+        </div>
+
+        <label className="theme-toggle">
+          <span>{locale.ui.theme.label}</span>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          >
+            {theme === 'light' ? locale.ui.theme.light : locale.ui.theme.dark}
+          </button>
+        </label>
       </header>
 
-      <section className="tests-section">
-        <div className="section-title">
-          <h2>Run Smoke Tests</h2>
-          <button onClick={runAllSmokeTests}>Run All Smoke Tests</button>
-        </div>
+      <div className="layout">
+        <aside className="sidebar">
+          <section className="sidebar-section">
+            <div className="section-title">
+              <h2>{locale.ui.sections.smoke}</h2>
+              <button onClick={runAllSmokeTests}>{locale.ui.actions.runAllSmoke}</button>
+            </div>
 
-        <SmokeSummary runs={runs} smokeIds={smokeTests.map((test) => test.id)} />
+            <SmokeSummary runs={runs} smokeIds={smokeTests.map((test) => test.id)} />
 
-        <div className="test-grid">
-          {smokeTests.map((test) => (
-            <TestCard
-              key={test.id}
-              test={test}
-              run={runs[test.id]}
-              onRun={startRun}
-              onRerunFromFailed={rerunFromFailedStep}
-            />
-          ))}
-        </div>
-      </section>
+            <div className="test-list">
+              {smokeTests.map((test) => (
+                <TestCard
+                  key={test.id}
+                  test={test}
+                  run={runs[test.id]}
+                  isActive={selectedTestId === test.id}
+                  onSelect={setSelectedTestId}
+                  onRun={startRun}
+                  onRerunFromFailed={rerunFromFailedStep}
+                />
+              ))}
+            </div>
+          </section>
 
-      <section className="tests-section">
-        <div className="section-title">
-          <h2>Full Scenarios</h2>
-        </div>
-        <div className="test-grid">
-          {fullScenarios.map((test) => (
-            <TestCard
-              key={test.id}
-              test={test}
-              run={runs[test.id]}
-              onRun={startRun}
-              onRerunFromFailed={rerunFromFailedStep}
-            />
-          ))}
-        </div>
-      </section>
+          <section className="sidebar-section">
+            <h2>{locale.ui.sections.scenarios}</h2>
+            <div className="test-list">
+              {fullScenarios.map((test) => (
+                <TestCard
+                  key={test.id}
+                  test={test}
+                  run={runs[test.id]}
+                  isActive={selectedTestId === test.id}
+                  onSelect={setSelectedTestId}
+                  onRun={startRun}
+                  onRerunFromFailed={rerunFromFailedStep}
+                />
+              ))}
+            </div>
+          </section>
+        </aside>
 
-      <BugList bugs={bugs} />
+        <section className="main-content">
+          {activeTest && activeRun ? (
+            <>
+              <ScenarioRunner
+                test={activeTest}
+                run={activeRun}
+                smokeQueueLabel={
+                  activeSmokeQueueIndex !== null
+                    ? localize(locale.ui.messages.smokeQueue, {
+                        current: activeSmokeQueueIndex + 1,
+                        total: smokeTests.length,
+                      })
+                    : undefined
+                }
+                onToggleCheck={toggleCheck}
+                onSetStepStatus={setStepStatus}
+                onNavigateStep={navigateStep}
+                onOpenBugForCurrentStep={() => {
+                  if (!activeStep) {
+                    return
+                  }
+
+                  setBugContext({
+                    testId: activeTest.id,
+                    stepId: activeStep.id,
+                  })
+                }}
+                onNextSmoke={activeSmokeQueueIndex !== null ? openNextSmoke : undefined}
+              />
+
+              {showBugForm && activeStep && (
+                <BugReportForm
+                  test={activeTest}
+                  step={activeStep}
+                  onSubmit={submitBug}
+                  onCancel={() => setBugContext(null)}
+                />
+              )}
+            </>
+          ) : (
+            <section className="empty-runner">
+              <h2>{locale.ui.sections.runner}</h2>
+              <p>{locale.ui.messages.emptyRunner}</p>
+              {activeTest && (
+                <button onClick={() => startRun(activeTest.id)}>{locale.ui.actions.runSelected}</button>
+              )}
+            </section>
+          )}
+
+          <BugList bugs={bugs} />
+        </section>
+      </div>
     </main>
   )
 }

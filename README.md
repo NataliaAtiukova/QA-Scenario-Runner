@@ -51,7 +51,9 @@ src/
     TestCard.tsx
   data/
     scenarios.ts
-    scenario-examples.json
+  locales/
+    ru.json
+    index.ts
   hooks/
     useLocalStorageState.ts
   utils/
@@ -65,5 +67,4 @@ src/
 
 ## Data
 
-- Source of truth used by UI: `src/data/scenarios.ts`
-- JSON examples: `src/data/scenario-examples.json`
+- Source of truth used by UI: `src/locales/ru.json`
