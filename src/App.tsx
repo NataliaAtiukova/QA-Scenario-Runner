@@ -185,11 +185,13 @@ function App() {
 
   useEffect(() => {
     const validation = validateSmokeTemplateFile({ smokeTests: draftTemplates })
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setValidationErrors(validation.valid ? [] : validation.errors)
   }, [draftTemplates])
 
   useEffect(() => {
     if (smokeTests.length > 0 && !selectedSmokeId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedSmokeId(smokeTests[0].id)
       if (activeMode === 'smoke' && !activeItemId) {
         setActiveItemId(smokeTests[0].id)
@@ -199,12 +201,14 @@ function App() {
 
   useEffect(() => {
     if (fullScenarios.length > 0 && !selectedScenarioId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedScenarioId(fullScenarios[0].id)
     }
   }, [selectedScenarioId])
 
   useEffect(() => {
     if (draftTemplates.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedTemplateId(null)
       return
     }
@@ -223,16 +227,16 @@ function App() {
     window.setTimeout(() => setNotice(null), 2000)
   }
 
-  const initializeRunForTest = (test: TestDefinition) => {
+  const initializeRunForTest = (test: TestDefinition, stepIndex = 0) => {
     setProgressState((previous) => ({
       ...previous,
-      [test.id]: createRunResult(test, 0),
+      [test.id]: createRunResult(test, stepIndex),
     }))
-    setCurrentStepIndex(0)
+    setCurrentStepIndex(stepIndex)
     setBugContext(null)
   }
 
-  const activateSmoke = (smokeId: string) => {
+  const activateSmoke = (smokeId: string, stepIndex = 0) => {
     const test = testMap[smokeId]
     if (!test || test.type !== 'smoke') {
       return
@@ -241,10 +245,10 @@ function App() {
     setActiveMode('smoke')
     setActiveItemId(smokeId)
     setSelectedSmokeId(smokeId)
-    initializeRunForTest(test)
+    initializeRunForTest(test, stepIndex)
   }
 
-  const activateScenario = (scenarioId: string) => {
+  const activateScenario = (scenarioId: string, stepIndex = 0) => {
     const test = testMap[scenarioId]
     if (!test || test.type !== 'scenario') {
       return
@@ -253,7 +257,31 @@ function App() {
     setActiveMode('scenario')
     setActiveItemId(scenarioId)
     setSelectedScenarioId(scenarioId)
-    initializeRunForTest(test)
+    initializeRunForTest(test, stepIndex)
+  }
+
+  const switchRunTab = (tab: RunTab) => {
+    setRunTab(tab)
+    if (tab === 'bugs') {
+      return
+    }
+    if (tab === 'smoke') {
+      const smokeId = selectedSmokeId ?? smokeTests[0]?.id
+      if (smokeId) {
+        setActiveMode('smoke')
+        setActiveItemId(smokeId)
+        setCurrentStepIndex(0)
+        setBugContext(null)
+      }
+      return
+    }
+    const scenarioId = selectedScenarioId ?? fullScenarios[0]?.id
+    if (scenarioId) {
+      setActiveMode('scenario')
+      setActiveItemId(scenarioId)
+      setCurrentStepIndex(0)
+      setBugContext(null)
+    }
   }
 
   const runAllSmokeTests = () => {
@@ -468,18 +496,6 @@ function App() {
 
   const renderRunMode = () => (
     <>
-      <nav className="run-tabs">
-        {runTabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={`secondary run-tab ${runTab === tab.id ? 'run-tab--active' : ''}`}
-            onClick={() => setRunTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
       {runTab === 'bugs' ? (
         <section className="main-content full-width">
           <BugList bugs={bugs} />
@@ -487,6 +503,7 @@ function App() {
       ) : (
         <div className="layout">
           <aside className="sidebar">
+            <h1 className="sidebar-app-title">{locale.ui.appTitle}</h1>
             {runTab === 'smoke' ? (
               <section className="sidebar-section">
                 <div className="section-title">
@@ -508,7 +525,7 @@ function App() {
                         setSelectedTemplateId(testId)
                         navigate('/edit')
                       }}
-                      onRerunFromFailed={(testId) => activateSmoke(testId)}
+                      onRerunFromFailed={(testId, stepIndex) => activateSmoke(testId, stepIndex)}
                     />
                   ))}
                 </div>
@@ -525,7 +542,7 @@ function App() {
                       isActive={selectedScenarioId === test.id}
                       onSelect={(testId) => activateScenario(testId)}
                       onRun={(testId) => activateScenario(testId)}
-                      onRerunFromFailed={(testId) => activateScenario(testId)}
+                      onRerunFromFailed={(testId, stepIndex) => activateScenario(testId, stepIndex)}
                     />
                   ))}
                 </div>
@@ -746,9 +763,22 @@ function App() {
   return (
     <main className="app">
       <header className="page-header">
-        <div>
-          <h1>{locale.ui.appTitle}</h1>
-          <p>{route === '/run' ? locale.ui.navigation.run : locale.ui.navigation.edit}</p>
+        <div className="header-left">
+          {route === '/run' ? (
+            <nav className="run-tabs">
+              {runTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`secondary run-tab ${runTab === tab.id ? 'run-tab--active' : ''}`}
+                  onClick={() => switchRunTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          ) : (
+            <h1>{locale.ui.sections.smokeEditor}</h1>
+          )}
         </div>
 
         <div className="header-actions">
@@ -763,13 +793,13 @@ function App() {
           )}
 
           <label className="theme-toggle">
-            <span>{locale.ui.theme.label}</span>
             <button
               type="button"
-              className="secondary"
+              className="secondary theme-icon-button"
               onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              title={locale.ui.theme.label}
             >
-              {theme === 'light' ? locale.ui.theme.light : locale.ui.theme.dark}
+              {theme === 'light' ? '◐' : '◑'}
             </button>
           </label>
         </div>

@@ -37,43 +37,46 @@ export function ScenarioRunner({
 
   const progress = Math.round((completedSteps / test.steps.length) * 100)
   const allChecksDone = step.checks.every((check) => execution.checks[check])
+  const runTitle =
+    test.type === 'smoke'
+      ? `Выполнение смок-теста: ${test.name}`
+      : `Выполнение сценария: ${test.name}`
 
   return (
     <section className="runner">
       <header className="runner__header">
-        <div>
-          <p className="runner__type">
-            {test.type === 'smoke' ? locale.ui.labels.typeSmoke : locale.ui.labels.typeScenario}
-          </p>
-          <h2>{test.name}</h2>
-          {smokeQueueLabel && <p className="runner__queue">{smokeQueueLabel}</p>}
-        </div>
-      </header>
-
-      <div className="runner__progress">
-        <p>
-          {locale.ui.labels.step} {currentStepIndex + 1}/{test.steps.length} · {locale.ui.labels.progress}{' '}
-          {progress}%
-        </p>
-        <div className="progress-bar">
+        <div className="progress-bar progress-bar--large">
           <span style={{ width: `${progress}%` }} />
         </div>
+        <p className="runner__step-line">
+          {locale.ui.labels.step} {currentStepIndex + 1} из {test.steps.length} ({progress}%)
+        </p>
+      </header>
+
+      <div className="runner__title-row">
+        <div>
+          <h2>{runTitle}</h2>
+          {smokeQueueLabel && <p className="runner__queue">{smokeQueueLabel}</p>}
+        </div>
+        <span className={`status status--${run.status}`}>{getStatusLabel(run.status)}</span>
       </div>
 
       <article className={`step-card step-card--${execution.status}`}>
-        <header>
-          <h3>{step.title}</h3>
+        <header className="step-card__header">
+          <h3>
+            {currentStepIndex + 1}. {step.title}
+          </h3>
           <span className={`status status--${execution.status}`}>{getStatusLabel(execution.status)}</span>
         </header>
 
         <p className="expected">
-          {locale.ui.labels.expected}: {step.expectedResult}
+          <strong>{locale.ui.labels.expected}:</strong> {step.expectedResult}
         </p>
 
-        <h4>{locale.ui.labels.checklist}</h4>
+        <h4 className="checklist-title">{locale.ui.labels.checklist}</h4>
         <div className="checklist">
           {step.checks.map((check) => (
-            <label key={check}>
+            <label key={check} className="checklist-item">
               <input
                 type="checkbox"
                 checked={execution.checks[check] || false}
@@ -84,10 +87,7 @@ export function ScenarioRunner({
           ))}
         </div>
 
-        <div className="step-card__actions">
-          <button className="secondary" onClick={() => onSetStepStatus(step.id, 'pending')}>
-            {locale.ui.actions.resetStep}
-          </button>
+        <div className="step-card__actions step-card__actions--result">
           <button
             className="pass"
             onClick={() => onSetStepStatus(step.id, 'passed')}
@@ -105,15 +105,14 @@ export function ScenarioRunner({
           >
             {locale.ui.actions.fail}
           </button>
+          <button className="secondary step-reset" onClick={() => onSetStepStatus(step.id, 'pending')}>
+            {locale.ui.actions.resetStep}
+          </button>
         </div>
       </article>
 
       <footer className="runner__footer">
-        <button
-          className="secondary"
-          onClick={() => onNavigateStep('prev')}
-          disabled={currentStepIndex === 0}
-        >
+        <button className="secondary" onClick={() => onNavigateStep('prev')} disabled={currentStepIndex === 0}>
           {locale.ui.actions.previous}
         </button>
         <button

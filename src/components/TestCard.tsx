@@ -43,7 +43,7 @@ export function TestCard({
         <span className={`status status--${status}`}>{getStatusLabel(status)}</span>
       </header>
       <p className="meta">
-        {test.steps.length} {locale.ui.labels.steps} · {test.estimatedMinutes} {locale.ui.labels.minutes}
+        {test.steps.length} {locale.ui.labels.steps}
       </p>
       <div className="test-card__actions">
         <button
