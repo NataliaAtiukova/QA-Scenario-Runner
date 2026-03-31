@@ -14,6 +14,10 @@
       "bugs": "Баг-репорты",
       "smokeEditor": "Редактор смоков"
     },
+    "navigation": {
+      "run": "Режим запуска",
+      "edit": "Режим редактирования"
+    },
     "actions": {
       "run": "Запустить",
       "runAllSmoke": "Запустить все смоки",
@@ -43,7 +47,13 @@
       "importExcel": "Импорт Excel",
       "exportExcel": "Экспорт Excel",
       "restoreBackup": "Восстановить бэкап",
-      "exportBackup": "Экспорт бэкапа"
+      "exportBackup": "Экспорт бэкапа",
+      "openSmokeEditor": "Редактировать смоки",
+      "backToRun": "К запуску",
+      "saveChanges": "Сохранить",
+      "cancelChanges": "Отменить",
+      "editSmoke": "Редактировать",
+      "startOver": "Начать заново"
     },
     "labels": {
       "step": "Шаг",
@@ -61,7 +71,8 @@
       "typeScenario": "Сценарий",
       "templateName": "Название шаблона",
       "stepName": "Название шага",
-      "checkName": "Проверка"
+      "checkName": "Проверка",
+      "selectSmoke": "Выбрать смок"
     },
     "statuses": {
       "not_started": "Не пройдено",
@@ -78,7 +89,7 @@
       "criticalSmoke": "КРИТИЧНО: есть проваленные смоки",
       "noCriticalSmoke": "Критических провалов нет",
       "smokeQueue": "Смок {{current}}/{{total}}",
-      "editorHint": "Все изменения смоков сохраняются автоматически.",
+      "editorHint": "Изменения в смоках применяются только после нажатия «Сохранить».",
       "selectTemplate": "Выберите шаблон или создайте новый.",
       "saved": "Шаблон сохранен.",
       "importSuccess": "Импорт выполнен успешно.",
@@ -86,7 +97,11 @@
       "noBackup": "Бэкап не найден.",
       "validationTitle": "Ошибка валидации:",
       "emptyStepName": "Название шага не может быть пустым.",
-      "emptyCheck": "Проверка не может быть пустой."
+      "emptyCheck": "Проверка не может быть пустой.",
+      "unsavedChanges": "Есть несохранённые изменения",
+      "savedChanges": "Изменения сохранены"
+      ,
+      "noBugsInTab": "Вкладка багов пуста."
     },
     "placeholders": {
       "actual": "Что произошло по факту?",

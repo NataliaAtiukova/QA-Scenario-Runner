@@ -23,7 +23,7 @@ export function createTemplate(name = 'Новый смок'): SmokeTemplate {
       {
         id: uniqueId('step'),
         title: 'Новый шаг',
-        checks: ['Новая проверка'],
+        checks: [],
       },
     ],
   }

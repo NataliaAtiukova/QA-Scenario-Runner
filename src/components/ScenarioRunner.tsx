@@ -4,25 +4,31 @@ import type { RunResult, StepStatus, TestDefinition } from '../types'
 interface ScenarioRunnerProps {
   test: TestDefinition
   run: RunResult
+  currentStepIndex: number
+  canGoNext: boolean
   smokeQueueLabel?: string
   onToggleCheck: (stepId: string, check: string) => void
   onSetStepStatus: (stepId: string, status: StepStatus) => void
   onNavigateStep: (direction: 'prev' | 'next') => void
   onOpenBugForCurrentStep: () => void
+  onRestart: () => void
   onNextSmoke?: () => void
 }
 
 export function ScenarioRunner({
   test,
   run,
+  currentStepIndex,
+  canGoNext,
   smokeQueueLabel,
   onToggleCheck,
   onSetStepStatus,
   onNavigateStep,
   onOpenBugForCurrentStep,
+  onRestart,
   onNextSmoke,
 }: ScenarioRunnerProps) {
-  const step = test.steps[run.currentStepIndex]
+  const step = test.steps[currentStepIndex]
   const execution = run.stepExecutions[step.id]
   const completedSteps = test.steps.filter((item) => {
     const status = run.stepExecutions[item.id]?.status
@@ -46,7 +52,7 @@ export function ScenarioRunner({
 
       <div className="runner__progress">
         <p>
-          {locale.ui.labels.step} {run.currentStepIndex + 1}/{test.steps.length} · {locale.ui.labels.progress}{' '}
+          {locale.ui.labels.step} {currentStepIndex + 1}/{test.steps.length} · {locale.ui.labels.progress}{' '}
           {progress}%
         </p>
         <div className="progress-bar">
@@ -106,16 +112,19 @@ export function ScenarioRunner({
         <button
           className="secondary"
           onClick={() => onNavigateStep('prev')}
-          disabled={run.currentStepIndex === 0}
+          disabled={currentStepIndex === 0}
         >
           {locale.ui.actions.previous}
         </button>
         <button
           className="secondary"
           onClick={() => onNavigateStep('next')}
-          disabled={run.currentStepIndex === test.steps.length - 1}
+          disabled={currentStepIndex === test.steps.length - 1 || !canGoNext}
         >
           {locale.ui.actions.next}
+        </button>
+        <button className="secondary" onClick={onRestart}>
+          {locale.ui.actions.startOver}
         </button>
         {onNextSmoke && (
           <button className="secondary" onClick={onNextSmoke}>

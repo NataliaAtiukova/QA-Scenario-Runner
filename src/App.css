@@ -85,7 +85,7 @@ button.fail {
 }
 
 .page-header {
-  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   background: var(--surface);
   padding: 0.8rem;
   display: flex;
@@ -110,10 +110,31 @@ button.fail {
   gap: 0.6rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.run-tabs {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.run-tab--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .layout {
   display: grid;
   gap: 0.8rem;
   grid-template-columns: 360px 1fr;
+}
+
+.edit-layout {
+  display: grid;
+  gap: 0.8rem;
 }
 
 .sidebar,
@@ -236,6 +257,10 @@ button.fail {
   display: grid;
   gap: 0.8rem;
   align-content: start;
+}
+
+.main-content.full-width {
+  width: 100%;
 }
 
 .runner {
@@ -363,10 +388,10 @@ textarea {
 
 .smoke-editor {
   padding: 0.7rem;
-  border: 1px solid var(--border);
   background: var(--surface);
   display: grid;
   gap: 0.6rem;
+  border: 1px solid var(--border);
 }
 
 .editor-tools {
@@ -399,21 +424,6 @@ textarea {
   padding-left: 1rem;
 }
 
-.template-list {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.template-chip {
-  font-size: 0.85rem;
-}
-
-.template-chip--active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 .template-editor,
 .step-editor-list {
   display: grid;
@@ -440,6 +450,22 @@ textarea {
 
 .check-row input {
   flex: 1;
+}
+
+.select-template {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.select-template select {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.3rem 0.45rem;
+}
+
+.bug-group h4 {
+  margin: 0.7rem 0 0.3rem;
 }
 
 .bug-item {

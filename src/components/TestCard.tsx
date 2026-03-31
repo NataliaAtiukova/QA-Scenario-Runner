@@ -6,12 +6,23 @@ interface TestCardProps {
   test: TestDefinition
   run: RunResult | undefined
   isActive: boolean
+  isSmoke?: boolean
   onSelect: (testId: string) => void
   onRun: (testId: string) => void
+  onEdit?: (testId: string) => void
   onRerunFromFailed: (testId: string, stepIndex: number) => void
 }
 
-export function TestCard({ test, run, isActive, onSelect, onRun, onRerunFromFailed }: TestCardProps) {
+export function TestCard({
+  test,
+  run,
+  isActive,
+  isSmoke = false,
+  onSelect,
+  onRun,
+  onEdit,
+  onRerunFromFailed,
+}: TestCardProps) {
   const status = run?.status ?? 'not_started'
   const failedStepIndex = getFirstFailedStepIndex(run, test)
 
@@ -43,6 +54,17 @@ export function TestCard({ test, run, isActive, onSelect, onRun, onRerunFromFail
         >
           {locale.ui.actions.run}
         </button>
+        {isSmoke && onEdit && (
+          <button
+            className="secondary"
+            onClick={(event) => {
+              event.stopPropagation()
+              onEdit(test.id)
+            }}
+          >
+            {locale.ui.actions.editSmoke}
+          </button>
+        )}
         {failedStepIndex !== null && (
           <button
             className="secondary"

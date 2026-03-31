@@ -7,11 +7,13 @@ interface SmokeEditorProps {
   selectedTemplateId: string | null
   validationErrors: string[]
   notice: string | null
+  isDirty: boolean
   onSelectTemplate: (id: string) => void
   onCreateTemplate: () => void
   onDuplicateTemplate: (id: string) => void
   onDeleteTemplate: (id: string) => void
   onSaveTemplate: () => void
+  onCancelChanges: () => void
   onUpdateTemplateName: (id: string, name: string) => void
   onAddStep: (id: string) => void
   onDeleteStep: (id: string, stepIndex: number) => void
@@ -33,11 +35,13 @@ export function SmokeEditor({
   selectedTemplateId,
   validationErrors,
   notice,
+  isDirty,
   onSelectTemplate,
   onCreateTemplate,
   onDuplicateTemplate,
   onDeleteTemplate,
   onSaveTemplate,
+  onCancelChanges,
   onUpdateTemplateName,
   onAddStep,
   onDeleteStep,
@@ -65,12 +69,32 @@ export function SmokeEditor({
     <section className="smoke-editor">
       <header className="section-title">
         <h2>{locale.ui.sections.smokeEditor}</h2>
-        <button className="secondary" onClick={onCreateTemplate}>
-          {locale.ui.actions.createTemplate}
-        </button>
+        <div className="template-actions">
+          <button className="secondary" onClick={onCreateTemplate}>
+            {locale.ui.actions.createTemplate}
+          </button>
+          <label className="select-template">
+            {locale.ui.labels.selectSmoke}
+            <select
+              value={selectedTemplateId ?? ''}
+              onChange={(event) => onSelectTemplate(event.target.value)}
+            >
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button onClick={onSaveTemplate}>{locale.ui.actions.saveChanges}</button>
+          <button className="secondary" onClick={onCancelChanges} disabled={!isDirty}>
+            {locale.ui.actions.cancelChanges}
+          </button>
+        </div>
       </header>
 
       <p className="meta">{locale.ui.messages.editorHint}</p>
+      {isDirty && <p className="notice">{locale.ui.messages.unsavedChanges}</p>}
 
       <div className="editor-tools">
         <button className="secondary" onClick={() => jsonInputRef.current?.click()}>
@@ -134,18 +158,6 @@ export function SmokeEditor({
         </div>
       )}
 
-      <div className="template-list">
-        {templates.map((template) => (
-          <button
-            key={template.id}
-            className={`secondary template-chip ${template.id === selectedTemplateId ? 'template-chip--active' : ''}`}
-            onClick={() => onSelectTemplate(template.id)}
-          >
-            {template.name}
-          </button>
-        ))}
-      </div>
-
       {!activeTemplate && <p>{locale.ui.messages.selectTemplate}</p>}
 
       {activeTemplate && (
@@ -165,7 +177,6 @@ export function SmokeEditor({
             <button className="secondary" onClick={() => onDeleteTemplate(activeTemplate.id)}>
               {locale.ui.actions.deleteTemplate}
             </button>
-            <button onClick={onSaveTemplate}>{locale.ui.actions.saveTemplate}</button>
           </div>
 
           <div className="step-editor-list">
