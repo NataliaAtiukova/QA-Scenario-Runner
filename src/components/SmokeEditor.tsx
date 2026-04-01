@@ -3,6 +3,9 @@ import { locale } from '../locales'
 import type { SmokeTemplate } from '../types'
 
 interface SmokeEditorProps {
+  title: string
+  createLabel: string
+  selectLabel: string
   templates: SmokeTemplate[]
   selectedTemplateId: string | null
   validationErrors: string[]
@@ -31,6 +34,9 @@ interface SmokeEditorProps {
 }
 
 export function SmokeEditor({
+  title,
+  createLabel,
+  selectLabel,
   templates,
   selectedTemplateId,
   validationErrors,
@@ -68,13 +74,13 @@ export function SmokeEditor({
   return (
     <section className="smoke-editor">
       <header className="section-title">
-        <h2>{locale.ui.sections.smokeEditor}</h2>
+        <h2>{title}</h2>
         <div className="template-actions">
           <button className="secondary" onClick={onCreateTemplate}>
-            {locale.ui.actions.createTemplate}
+            {createLabel}
           </button>
           <label className="select-template">
-            {locale.ui.labels.selectSmoke}
+            {selectLabel}
             <select
               value={selectedTemplateId ?? ''}
               onChange={(event) => onSelectTemplate(event.target.value)}

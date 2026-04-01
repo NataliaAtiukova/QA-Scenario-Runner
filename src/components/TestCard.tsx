@@ -54,7 +54,7 @@ export function TestCard({
         >
           {locale.ui.actions.run}
         </button>
-        {isSmoke && onEdit && (
+        {onEdit && (
           <button
             className="secondary"
             onClick={(event) => {
@@ -62,7 +62,7 @@ export function TestCard({
               onEdit(test.id)
             }}
           >
-            {locale.ui.actions.editSmoke}
+            {isSmoke ? locale.ui.actions.editSmoke : locale.ui.actions.editScenario}
           </button>
         )}
         {failedStepIndex !== null && (

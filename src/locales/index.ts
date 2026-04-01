@@ -29,3 +29,15 @@ export const defaultSmokeTemplateFile: SmokeTemplateFile = {
     })),
   })),
 }
+
+export const defaultScenarioTemplateFile: { scenarios: SmokeTemplateFile['smokeTests'] } = {
+  scenarios: (locale.tests.scenarios as TestDefinition[]).map((test) => ({
+    id: test.id,
+    name: test.name,
+    steps: test.steps.map((step) => ({
+      id: step.id,
+      title: step.title,
+      checks: step.checks,
+    })),
+  })),
+}

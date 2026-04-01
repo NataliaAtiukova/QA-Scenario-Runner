@@ -6,7 +6,13 @@ import { ScenarioRunner } from './components/ScenarioRunner'
 import { SmokeEditor } from './components/SmokeEditor'
 import { SmokeSummary } from './components/SmokeSummary'
 import { TestCard } from './components/TestCard'
-import { defaultSmokeTemplateFile, fullScenarios, locale, localize, type ThemeMode } from './locales'
+import {
+  defaultScenarioTemplateFile,
+  defaultSmokeTemplateFile,
+  locale,
+  localize,
+  type ThemeMode,
+} from './locales'
 import { useLocalStorageState } from './hooks/useLocalStorageState'
 import type {
   BugReport,
@@ -26,16 +32,28 @@ import {
   templatesToTests,
   validateSmokeTemplateFile,
 } from './utils/smokeTemplates'
+import {
+  cloneScenarioTemplate,
+  createScenarioTemplate,
+  exportScenarioTemplatesAsExcel,
+  exportScenarioTemplatesAsJson,
+  importScenarioTemplatesFromExcel,
+  templatesToScenarioTests,
+  validateScenarioTemplateFile,
+} from './utils/scenarioTemplates'
 
 type AppRoute = '/run' | '/edit'
 type RunTab = 'smoke' | 'scenario' | 'bugs'
 type ActiveMode = 'smoke' | 'scenario'
+type EditTab = 'smoke' | 'scenario'
 
 const RUNS_STORAGE_KEY = 'qa-runner:runs'
 const BUGS_STORAGE_KEY = 'qa-runner:bugs'
 const THEME_STORAGE_KEY = 'qa-runner:theme'
 const SMOKE_TEMPLATES_STORAGE_KEY = 'qa-runner:smoke-templates'
 const SMOKE_TEMPLATES_BACKUP_KEY = 'qa-runner:smoke-templates-backup'
+const SCENARIO_TEMPLATES_STORAGE_KEY = 'qa-runner:scenario-templates'
+const SCENARIO_TEMPLATES_BACKUP_KEY = 'qa-runner:scenario-templates-backup'
 
 interface BugContext {
   testId: string
@@ -89,6 +107,7 @@ function App() {
 
   const [route, setRoute] = useState<AppRoute>(() => resolveInitialRoute())
   const [runTab, setRunTab] = useState<RunTab>('smoke')
+  const [editTab, setEditTab] = useState<EditTab>('smoke')
 
   const [selectedSmokeId, setSelectedSmokeId] = useState<string | null>(null)
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null)
@@ -105,10 +124,26 @@ function App() {
   )
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [notice, setNotice] = useState<string | null>(null)
+
+  const [persistedScenarioTemplates, setPersistedScenarioTemplates] = useState<SmokeTemplate[]>(
+    defaultScenarioTemplateFile.scenarios,
+  )
+  const [draftScenarioTemplates, setDraftScenarioTemplates] = useState<SmokeTemplate[]>(
+    defaultScenarioTemplateFile.scenarios,
+  )
+  const [selectedScenarioTemplateId, setSelectedScenarioTemplateId] = useState<string | null>(
+    defaultScenarioTemplateFile.scenarios[0]?.id ?? null,
+  )
+  const [scenarioValidationErrors, setScenarioValidationErrors] = useState<string[]>([])
+  const [scenarioNotice, setScenarioNotice] = useState<string | null>(null)
   const [bugContext, setBugContext] = useState<BugContext | null>(null)
 
   const smokeTests = useMemo(() => templatesToTests(persistedTemplates), [persistedTemplates])
-  const allTests = useMemo(() => [...smokeTests, ...fullScenarios], [smokeTests])
+  const scenarioTests = useMemo(
+    () => templatesToScenarioTests(persistedScenarioTemplates),
+    [persistedScenarioTemplates],
+  )
+  const allTests = useMemo(() => [...smokeTests, ...scenarioTests], [scenarioTests, smokeTests])
   const testMap = useMemo(
     () => allTests.reduce<Record<string, TestDefinition>>((acc, test) => ({ ...acc, [test.id]: test }), {}),
     [allTests],
@@ -121,6 +156,10 @@ function App() {
   const isEditDirty = useMemo(
     () => JSON.stringify(draftTemplates) !== JSON.stringify(persistedTemplates),
     [draftTemplates, persistedTemplates],
+  )
+  const isScenarioEditDirty = useMemo(
+    () => JSON.stringify(draftScenarioTemplates) !== JSON.stringify(persistedScenarioTemplates),
+    [draftScenarioTemplates, persistedScenarioTemplates],
   )
 
   useEffect(() => {
@@ -184,10 +223,66 @@ function App() {
   }, [])
 
   useEffect(() => {
+    let ignore = false
+
+    const loadScenarioTemplates = async () => {
+      try {
+        const response = await fetch('/data/scenarios.json', { cache: 'no-store' })
+        if (response.ok) {
+          const parsed = (await response.json()) as { scenarios: SmokeTemplate[] }
+          const validation = validateScenarioTemplateFile(parsed)
+          if (validation.valid && validation.file && !ignore) {
+            setPersistedScenarioTemplates(validation.file.scenarios)
+            setDraftScenarioTemplates(validation.file.scenarios)
+            setSelectedScenarioTemplateId(validation.file.scenarios[0]?.id ?? null)
+            localStorage.setItem(SCENARIO_TEMPLATES_STORAGE_KEY, JSON.stringify(validation.file))
+            return
+          }
+        }
+      } catch {
+        // fallback below
+      }
+
+      const localRaw = localStorage.getItem(SCENARIO_TEMPLATES_STORAGE_KEY)
+      if (localRaw) {
+        try {
+          const parsed = JSON.parse(localRaw) as { scenarios: SmokeTemplate[] }
+          const validation = validateScenarioTemplateFile(parsed)
+          if (validation.valid && validation.file && !ignore) {
+            setPersistedScenarioTemplates(validation.file.scenarios)
+            setDraftScenarioTemplates(validation.file.scenarios)
+            setSelectedScenarioTemplateId(validation.file.scenarios[0]?.id ?? null)
+            return
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
+      if (!ignore) {
+        setPersistedScenarioTemplates(defaultScenarioTemplateFile.scenarios)
+        setDraftScenarioTemplates(defaultScenarioTemplateFile.scenarios)
+        setSelectedScenarioTemplateId(defaultScenarioTemplateFile.scenarios[0]?.id ?? null)
+      }
+    }
+
+    loadScenarioTemplates().catch(() => undefined)
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  useEffect(() => {
     const validation = validateSmokeTemplateFile({ smokeTests: draftTemplates })
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setValidationErrors(validation.valid ? [] : validation.errors)
   }, [draftTemplates])
+
+  useEffect(() => {
+    const validation = validateScenarioTemplateFile({ scenarios: draftScenarioTemplates })
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setScenarioValidationErrors(validation.valid ? [] : validation.errors)
+  }, [draftScenarioTemplates])
 
   useEffect(() => {
     if (smokeTests.length > 0 && !selectedSmokeId) {
@@ -200,11 +295,11 @@ function App() {
   }, [activeItemId, activeMode, selectedSmokeId, smokeTests])
 
   useEffect(() => {
-    if (fullScenarios.length > 0 && !selectedScenarioId) {
+    if (scenarioTests.length > 0 && !selectedScenarioId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedScenarioId(fullScenarios[0].id)
+      setSelectedScenarioId(scenarioTests[0].id)
     }
-  }, [selectedScenarioId])
+  }, [scenarioTests, selectedScenarioId])
 
   useEffect(() => {
     if (draftTemplates.length === 0) {
@@ -216,6 +311,20 @@ function App() {
       setSelectedTemplateId(draftTemplates[0].id)
     }
   }, [draftTemplates, selectedTemplateId])
+
+  useEffect(() => {
+    if (draftScenarioTemplates.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedScenarioTemplateId(null)
+      return
+    }
+    if (
+      !selectedScenarioTemplateId ||
+      !draftScenarioTemplates.some((template) => template.id === selectedScenarioTemplateId)
+    ) {
+      setSelectedScenarioTemplateId(draftScenarioTemplates[0].id)
+    }
+  }, [draftScenarioTemplates, selectedScenarioTemplateId])
 
   const navigate = (nextRoute: AppRoute) => {
     window.history.pushState(null, '', nextRoute)
@@ -275,7 +384,7 @@ function App() {
       }
       return
     }
-    const scenarioId = selectedScenarioId ?? fullScenarios[0]?.id
+    const scenarioId = selectedScenarioId ?? scenarioTests[0]?.id
     if (scenarioId) {
       setActiveMode('scenario')
       setActiveItemId(scenarioId)
@@ -412,8 +521,25 @@ function App() {
     setBugContext(null)
   }
 
+  const updateBug = (bugId: string, patch: Partial<BugReport>) => {
+    setBugs((previous) => previous.map((bug) => (bug.id === bugId ? { ...bug, ...patch } : bug)))
+  }
+
+  const deleteBug = (bugId: string) => {
+    setBugs((previous) => previous.filter((bug) => bug.id !== bugId))
+  }
+
   const updateDraftTemplate = (templateId: string, updater: (template: SmokeTemplate) => SmokeTemplate) => {
     setDraftTemplates((previous) =>
+      previous.map((template) => (template.id === templateId ? updater(template) : template)),
+    )
+  }
+
+  const updateDraftScenarioTemplate = (
+    templateId: string,
+    updater: (template: SmokeTemplate) => SmokeTemplate,
+  ) => {
+    setDraftScenarioTemplates((previous) =>
       previous.map((template) => (template.id === templateId ? updater(template) : template)),
     )
   }
@@ -437,6 +563,31 @@ function App() {
     setDraftTemplates(persistedTemplates)
     setValidationErrors([])
     setNotice(null)
+  }
+
+  const saveScenarioDraftTemplates = () => {
+    const validation = validateScenarioTemplateFile({ scenarios: draftScenarioTemplates })
+    if (!validation.valid || !validation.file) {
+      setScenarioValidationErrors(validation.errors)
+      return
+    }
+
+    localStorage.setItem(
+      SCENARIO_TEMPLATES_BACKUP_KEY,
+      JSON.stringify({ scenarios: persistedScenarioTemplates }),
+    )
+    localStorage.setItem(SCENARIO_TEMPLATES_STORAGE_KEY, JSON.stringify(validation.file))
+    setPersistedScenarioTemplates(validation.file.scenarios)
+    setDraftScenarioTemplates(validation.file.scenarios)
+    setScenarioValidationErrors([])
+    setScenarioNotice(locale.ui.messages.savedChanges)
+    window.setTimeout(() => setScenarioNotice(null), 2000)
+  }
+
+  const cancelScenarioDraftChanges = () => {
+    setDraftScenarioTemplates(persistedScenarioTemplates)
+    setScenarioValidationErrors([])
+    setScenarioNotice(null)
   }
 
   const handleImportJson = async (file: File) => {
@@ -464,6 +615,33 @@ function App() {
     setSuccessNotice(locale.ui.messages.importSuccess)
   }
 
+  const handleImportScenarioJson = async (file: File) => {
+    const text = await file.text()
+    const parsed = JSON.parse(text) as { scenarios: SmokeTemplate[] }
+    const validation = validateScenarioTemplateFile(parsed)
+    if (!validation.valid || !validation.file) {
+      setScenarioValidationErrors(validation.errors)
+      return
+    }
+    setDraftScenarioTemplates(validation.file.scenarios)
+    setSelectedScenarioTemplateId(validation.file.scenarios[0]?.id ?? null)
+    setScenarioNotice(locale.ui.messages.importSuccess)
+    window.setTimeout(() => setScenarioNotice(null), 2000)
+  }
+
+  const handleImportScenarioExcel = async (file: File) => {
+    const parsed = importScenarioTemplatesFromExcel(await file.arrayBuffer())
+    const validation = validateScenarioTemplateFile(parsed)
+    if (!validation.valid || !validation.file) {
+      setScenarioValidationErrors(validation.errors)
+      return
+    }
+    setDraftScenarioTemplates(validation.file.scenarios)
+    setSelectedScenarioTemplateId(validation.file.scenarios[0]?.id ?? null)
+    setScenarioNotice(locale.ui.messages.importSuccess)
+    window.setTimeout(() => setScenarioNotice(null), 2000)
+  }
+
   const handleRestoreBackup = () => {
     const raw = localStorage.getItem(SMOKE_TEMPLATES_BACKUP_KEY)
     if (!raw) {
@@ -485,6 +663,28 @@ function App() {
     }
   }
 
+  const handleRestoreScenarioBackup = () => {
+    const raw = localStorage.getItem(SCENARIO_TEMPLATES_BACKUP_KEY)
+    if (!raw) {
+      setScenarioNotice(locale.ui.messages.noBackup)
+      return
+    }
+    try {
+      const parsed = JSON.parse(raw) as { scenarios: SmokeTemplate[] }
+      const validation = validateScenarioTemplateFile(parsed)
+      if (!validation.valid || !validation.file) {
+        setScenarioValidationErrors(validation.errors)
+        return
+      }
+      setDraftScenarioTemplates(validation.file.scenarios)
+      setSelectedScenarioTemplateId(validation.file.scenarios[0]?.id ?? null)
+      setScenarioNotice(locale.ui.messages.restoreSuccess)
+      window.setTimeout(() => setScenarioNotice(null), 2000)
+    } catch {
+      setScenarioNotice(locale.ui.messages.noBackup)
+    }
+  }
+
   const showBugForm =
     activeTest && activeStep && bugContext?.testId === activeTest.id && bugContext.stepId === activeStep.id
 
@@ -498,7 +698,7 @@ function App() {
     <>
       {runTab === 'bugs' ? (
         <section className="main-content full-width">
-          <BugList bugs={bugs} />
+          <BugList bugs={bugs} onUpdateBug={updateBug} onDeleteBug={deleteBug} />
         </section>
       ) : (
         <div className="layout">
@@ -522,6 +722,7 @@ function App() {
                       onSelect={(testId) => activateSmoke(testId)}
                       onRun={(testId) => activateSmoke(testId)}
                       onEdit={(testId) => {
+                        setEditTab('smoke')
                         setSelectedTemplateId(testId)
                         navigate('/edit')
                       }}
@@ -534,7 +735,7 @@ function App() {
               <section className="sidebar-section">
                 <h2>{locale.ui.sections.scenarios}</h2>
                 <div className="test-list">
-                  {fullScenarios.map((test) => (
+                  {scenarioTests.map((test) => (
                     <TestCard
                       key={test.id}
                       test={test}
@@ -542,6 +743,11 @@ function App() {
                       isActive={selectedScenarioId === test.id}
                       onSelect={(testId) => activateScenario(testId)}
                       onRun={(testId) => activateScenario(testId)}
+                      onEdit={(testId) => {
+                        setEditTab('scenario')
+                        setSelectedScenarioTemplateId(testId)
+                        navigate('/edit')
+                      }}
                       onRerunFromFailed={(testId, stepIndex) => activateScenario(testId, stepIndex)}
                     />
                   ))}
@@ -605,158 +811,334 @@ function App() {
 
   const renderEditMode = () => (
     <div className="edit-layout">
-      <SmokeEditor
-        templates={draftTemplates}
-        selectedTemplateId={selectedTemplateId}
-        validationErrors={validationErrors}
-        notice={notice}
-        isDirty={isEditDirty}
-        onSelectTemplate={setSelectedTemplateId}
-        onCreateTemplate={() => {
-          const next = createTemplate()
-          setDraftTemplates((previous) => [...previous, next])
-          setSelectedTemplateId(next.id)
-        }}
-        onDuplicateTemplate={(id) => {
-          const original = draftTemplates.find((template) => template.id === id)
-          if (!original) {
-            return
-          }
-          const copy = cloneTemplate(original)
-          setDraftTemplates((previous) => [...previous, copy])
-          setSelectedTemplateId(copy.id)
-        }}
-        onDeleteTemplate={(id) => {
-          setDraftTemplates((previous) => previous.filter((template) => template.id !== id))
-          setSelectedTemplateId((current) => {
-            if (current !== id) {
-              return current
+      <div className="editor-switch">
+        <button
+          className={`secondary ${editTab === 'smoke' ? 'editor-switch__active' : ''}`}
+          onClick={() => setEditTab('smoke')}
+        >
+          {locale.ui.sections.smokeEditor}
+        </button>
+        <button
+          className={`secondary ${editTab === 'scenario' ? 'editor-switch__active' : ''}`}
+          onClick={() => setEditTab('scenario')}
+        >
+          {locale.ui.sections.scenarioEditor}
+        </button>
+      </div>
+
+      {editTab === 'smoke' ? (
+        <SmokeEditor
+          title={locale.ui.sections.smokeEditor}
+          createLabel={locale.ui.actions.createTemplate}
+          selectLabel={locale.ui.labels.selectSmoke}
+          templates={draftTemplates}
+          selectedTemplateId={selectedTemplateId}
+          validationErrors={validationErrors}
+          notice={notice}
+          isDirty={isEditDirty}
+          onSelectTemplate={setSelectedTemplateId}
+          onCreateTemplate={() => {
+            const next = createTemplate()
+            setDraftTemplates((previous) => [...previous, next])
+            setSelectedTemplateId(next.id)
+          }}
+          onDuplicateTemplate={(id) => {
+            const original = draftTemplates.find((template) => template.id === id)
+            if (!original) {
+              return
             }
-            const next = draftTemplates.find((template) => template.id !== id)
-            return next?.id ?? null
-          })
-        }}
-        onSaveTemplate={saveDraftTemplates}
-        onCancelChanges={cancelDraftChanges}
-        onUpdateTemplateName={(id, name) => {
-          updateDraftTemplate(id, (template) => ({ ...template, name }))
-        }}
-        onAddStep={(id) => {
-          updateDraftTemplate(id, (template) => ({
-            ...template,
-            steps: [
-              ...template.steps,
-              {
-                id: `step-${Date.now()}`,
-                title: `Шаг ${template.steps.length + 1}`,
-                checks: [],
-              },
-            ],
-          }))
-        }}
-        onDeleteStep={(id, stepIndex) => {
-          updateDraftTemplate(id, (template) => {
-            if (template.steps.length === 1) {
-              return template
-            }
-            return {
+            const copy = cloneTemplate(original)
+            setDraftTemplates((previous) => [...previous, copy])
+            setSelectedTemplateId(copy.id)
+          }}
+          onDeleteTemplate={(id) => {
+            setDraftTemplates((previous) => previous.filter((template) => template.id !== id))
+            setSelectedTemplateId((current) => {
+              if (current !== id) {
+                return current
+              }
+              const next = draftTemplates.find((template) => template.id !== id)
+              return next?.id ?? null
+            })
+          }}
+          onSaveTemplate={saveDraftTemplates}
+          onCancelChanges={cancelDraftChanges}
+          onUpdateTemplateName={(id, name) => {
+            updateDraftTemplate(id, (template) => ({ ...template, name }))
+          }}
+          onAddStep={(id) => {
+            updateDraftTemplate(id, (template) => ({
               ...template,
-              steps: template.steps.filter((_, index) => index !== stepIndex),
-            }
-          })
-        }}
-        onMoveStep={(id, stepIndex, direction) => {
-          updateDraftTemplate(id, (template) => {
-            const nextIndex = direction === 'up' ? stepIndex - 1 : stepIndex + 1
-            if (nextIndex < 0 || nextIndex >= template.steps.length) {
-              return template
-            }
-            const nextSteps = [...template.steps]
-            const current = nextSteps[stepIndex]
-            nextSteps[stepIndex] = nextSteps[nextIndex]
-            nextSteps[nextIndex] = current
-            return {
+              steps: [
+                ...template.steps,
+                {
+                  id: `step-${Date.now()}`,
+                  title: `Шаг ${template.steps.length + 1}`,
+                  checks: [],
+                },
+              ],
+            }))
+          }}
+          onDeleteStep={(id, stepIndex) => {
+            updateDraftTemplate(id, (template) => {
+              if (template.steps.length === 1) {
+                return template
+              }
+              return {
+                ...template,
+                steps: template.steps.filter((_, index) => index !== stepIndex),
+              }
+            })
+          }}
+          onMoveStep={(id, stepIndex, direction) => {
+            updateDraftTemplate(id, (template) => {
+              const nextIndex = direction === 'up' ? stepIndex - 1 : stepIndex + 1
+              if (nextIndex < 0 || nextIndex >= template.steps.length) {
+                return template
+              }
+              const nextSteps = [...template.steps]
+              const current = nextSteps[stepIndex]
+              nextSteps[stepIndex] = nextSteps[nextIndex]
+              nextSteps[nextIndex] = current
+              return {
+                ...template,
+                steps: nextSteps,
+              }
+            })
+          }}
+          onUpdateStepTitle={(id, stepIndex, title) => {
+            updateDraftTemplate(id, (template) => ({
               ...template,
-              steps: nextSteps,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      title,
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onAddCheck={(id, stepIndex) => {
+            updateDraftTemplate(id, (template) => ({
+              ...template,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      checks: [...step.checks, ''],
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onUpdateCheck={(id, stepIndex, checkIndex, value) => {
+            updateDraftTemplate(id, (template) => ({
+              ...template,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      checks: step.checks.map((check, currentCheckIndex) =>
+                        currentCheckIndex === checkIndex ? value : check,
+                      ),
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onDeleteCheck={(id, stepIndex, checkIndex) => {
+            updateDraftTemplate(id, (template) => ({
+              ...template,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      checks: step.checks.filter((_, currentCheckIndex) => currentCheckIndex !== checkIndex),
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onImportJson={(file) => {
+            handleImportJson(file).catch(() => undefined)
+          }}
+          onExportJson={() => {
+            downloadText('smoke-tests.json', exportTemplatesAsJson(draftTemplates))
+          }}
+          onImportExcel={(file) => {
+            handleImportExcel(file).catch(() => undefined)
+          }}
+          onExportExcel={() => {
+            downloadArrayBuffer('smoke-tests.xlsx', exportTemplatesAsExcel(draftTemplates))
+          }}
+          onRestoreBackup={handleRestoreBackup}
+          onExportBackup={() => {
+            const backup = localStorage.getItem(SMOKE_TEMPLATES_BACKUP_KEY)
+            if (!backup) {
+              setNotice(locale.ui.messages.noBackup)
+              return
             }
-          })
-        }}
-        onUpdateStepTitle={(id, stepIndex, title) => {
-          updateDraftTemplate(id, (template) => ({
-            ...template,
-            steps: template.steps.map((step, index) =>
-              index === stepIndex
-                ? {
-                    ...step,
-                    title,
-                  }
-                : step,
-            ),
-          }))
-        }}
-        onAddCheck={(id, stepIndex) => {
-          updateDraftTemplate(id, (template) => ({
-            ...template,
-            steps: template.steps.map((step, index) =>
-              index === stepIndex
-                ? {
-                    ...step,
-                    checks: [...step.checks, ''],
-                  }
-                : step,
-            ),
-          }))
-        }}
-        onUpdateCheck={(id, stepIndex, checkIndex, value) => {
-          updateDraftTemplate(id, (template) => ({
-            ...template,
-            steps: template.steps.map((step, index) =>
-              index === stepIndex
-                ? {
-                    ...step,
-                    checks: step.checks.map((check, currentCheckIndex) =>
-                      currentCheckIndex === checkIndex ? value : check,
-                    ),
-                  }
-                : step,
-            ),
-          }))
-        }}
-        onDeleteCheck={(id, stepIndex, checkIndex) => {
-          updateDraftTemplate(id, (template) => ({
-            ...template,
-            steps: template.steps.map((step, index) =>
-              index === stepIndex
-                ? {
-                    ...step,
-                    checks: step.checks.filter((_, currentCheckIndex) => currentCheckIndex !== checkIndex),
-                  }
-                : step,
-            ),
-          }))
-        }}
-        onImportJson={(file) => {
-          handleImportJson(file).catch(() => undefined)
-        }}
-        onExportJson={() => {
-          downloadText('smoke-tests.json', exportTemplatesAsJson(draftTemplates))
-        }}
-        onImportExcel={(file) => {
-          handleImportExcel(file).catch(() => undefined)
-        }}
-        onExportExcel={() => {
-          downloadArrayBuffer('smoke-tests.xlsx', exportTemplatesAsExcel(draftTemplates))
-        }}
-        onRestoreBackup={handleRestoreBackup}
-        onExportBackup={() => {
-          const backup = localStorage.getItem(SMOKE_TEMPLATES_BACKUP_KEY)
-          if (!backup) {
-            setNotice(locale.ui.messages.noBackup)
-            return
-          }
-          downloadText('smoke-tests.backup.json', backup)
-        }}
-      />
+            downloadText('smoke-tests.backup.json', backup)
+          }}
+        />
+      ) : (
+        <SmokeEditor
+          title={locale.ui.sections.scenarioEditor}
+          createLabel={locale.ui.actions.createScenario}
+          selectLabel={locale.ui.labels.selectScenario}
+          templates={draftScenarioTemplates}
+          selectedTemplateId={selectedScenarioTemplateId}
+          validationErrors={scenarioValidationErrors}
+          notice={scenarioNotice}
+          isDirty={isScenarioEditDirty}
+          onSelectTemplate={setSelectedScenarioTemplateId}
+          onCreateTemplate={() => {
+            const next = createScenarioTemplate()
+            setDraftScenarioTemplates((previous) => [...previous, next])
+            setSelectedScenarioTemplateId(next.id)
+          }}
+          onDuplicateTemplate={(id) => {
+            const original = draftScenarioTemplates.find((template) => template.id === id)
+            if (!original) {
+              return
+            }
+            const copy = cloneScenarioTemplate(original)
+            setDraftScenarioTemplates((previous) => [...previous, copy])
+            setSelectedScenarioTemplateId(copy.id)
+          }}
+          onDeleteTemplate={(id) => {
+            setDraftScenarioTemplates((previous) => previous.filter((template) => template.id !== id))
+            setSelectedScenarioTemplateId((current) => {
+              if (current !== id) {
+                return current
+              }
+              const next = draftScenarioTemplates.find((template) => template.id !== id)
+              return next?.id ?? null
+            })
+          }}
+          onSaveTemplate={saveScenarioDraftTemplates}
+          onCancelChanges={cancelScenarioDraftChanges}
+          onUpdateTemplateName={(id, name) => {
+            updateDraftScenarioTemplate(id, (template) => ({ ...template, name }))
+          }}
+          onAddStep={(id) => {
+            updateDraftScenarioTemplate(id, (template) => ({
+              ...template,
+              steps: [
+                ...template.steps,
+                {
+                  id: `step-${Date.now()}`,
+                  title: `Шаг ${template.steps.length + 1}`,
+                  checks: [],
+                },
+              ],
+            }))
+          }}
+          onDeleteStep={(id, stepIndex) => {
+            updateDraftScenarioTemplate(id, (template) => {
+              if (template.steps.length === 1) {
+                return template
+              }
+              return {
+                ...template,
+                steps: template.steps.filter((_, index) => index !== stepIndex),
+              }
+            })
+          }}
+          onMoveStep={(id, stepIndex, direction) => {
+            updateDraftScenarioTemplate(id, (template) => {
+              const nextIndex = direction === 'up' ? stepIndex - 1 : stepIndex + 1
+              if (nextIndex < 0 || nextIndex >= template.steps.length) {
+                return template
+              }
+              const nextSteps = [...template.steps]
+              const current = nextSteps[stepIndex]
+              nextSteps[stepIndex] = nextSteps[nextIndex]
+              nextSteps[nextIndex] = current
+              return {
+                ...template,
+                steps: nextSteps,
+              }
+            })
+          }}
+          onUpdateStepTitle={(id, stepIndex, title) => {
+            updateDraftScenarioTemplate(id, (template) => ({
+              ...template,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      title,
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onAddCheck={(id, stepIndex) => {
+            updateDraftScenarioTemplate(id, (template) => ({
+              ...template,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      checks: [...step.checks, ''],
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onUpdateCheck={(id, stepIndex, checkIndex, value) => {
+            updateDraftScenarioTemplate(id, (template) => ({
+              ...template,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      checks: step.checks.map((check, currentCheckIndex) =>
+                        currentCheckIndex === checkIndex ? value : check,
+                      ),
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onDeleteCheck={(id, stepIndex, checkIndex) => {
+            updateDraftScenarioTemplate(id, (template) => ({
+              ...template,
+              steps: template.steps.map((step, index) =>
+                index === stepIndex
+                  ? {
+                      ...step,
+                      checks: step.checks.filter((_, currentCheckIndex) => currentCheckIndex !== checkIndex),
+                    }
+                  : step,
+              ),
+            }))
+          }}
+          onImportJson={(file) => {
+            handleImportScenarioJson(file).catch(() => undefined)
+          }}
+          onExportJson={() => {
+            downloadText('scenarios.json', exportScenarioTemplatesAsJson(draftScenarioTemplates))
+          }}
+          onImportExcel={(file) => {
+            handleImportScenarioExcel(file).catch(() => undefined)
+          }}
+          onExportExcel={() => {
+            downloadArrayBuffer('scenarios.xlsx', exportScenarioTemplatesAsExcel(draftScenarioTemplates))
+          }}
+          onRestoreBackup={handleRestoreScenarioBackup}
+          onExportBackup={() => {
+            const backup = localStorage.getItem(SCENARIO_TEMPLATES_BACKUP_KEY)
+            if (!backup) {
+              setScenarioNotice(locale.ui.messages.noBackup)
+              return
+            }
+            downloadText('scenarios.backup.json', backup)
+          }}
+        />
+      )}
     </div>
   )
 
@@ -777,7 +1159,7 @@ function App() {
               ))}
             </nav>
           ) : (
-            <h1>{locale.ui.sections.smokeEditor}</h1>
+            <h1>{locale.ui.sections.templateEditors}</h1>
           )}
         </div>
 

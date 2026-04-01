@@ -12,7 +12,9 @@
       "scenarios": "Сценарии",
       "runner": "Выполнение",
       "bugs": "Баг-репорты",
-      "smokeEditor": "Редактор смоков"
+      "smokeEditor": "Редактор смоков",
+      "scenarioEditor": "Редактор сценариев",
+      "templateEditors": "Редактирование шаблонов"
     },
     "navigation": {
       "run": "Режим запуска",
@@ -53,7 +55,13 @@
       "saveChanges": "Сохранить",
       "cancelChanges": "Отменить",
       "editSmoke": "Редактировать",
-      "startOver": "Начать заново"
+      "editScenario": "Редактировать",
+      "createScenario": "Создать сценарий",
+      "startOver": "Начать заново",
+      "edit": "Редактировать",
+      "delete": "Удалить",
+      "save": "Сохранить",
+      "cancel": "Отменить"
     },
     "labels": {
       "step": "Шаг",
@@ -72,7 +80,8 @@
       "templateName": "Название шаблона",
       "stepName": "Название шага",
       "checkName": "Проверка",
-      "selectSmoke": "Выбрать смок"
+      "selectSmoke": "Выбрать смок",
+      "selectScenario": "Выбрать сценарий"
     },
     "statuses": {
       "not_started": "Не пройдено",

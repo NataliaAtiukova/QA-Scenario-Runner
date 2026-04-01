@@ -1,11 +1,43 @@
+import { useState } from 'react'
 import { locale } from '../locales'
 import type { BugReport } from '../types'
 
 interface BugListProps {
   bugs: BugReport[]
+  onUpdateBug: (bugId: string, patch: Partial<BugReport>) => void
+  onDeleteBug: (bugId: string) => void
 }
 
-export function BugList({ bugs }: BugListProps) {
+export function BugList({ bugs, onUpdateBug, onDeleteBug }: BugListProps) {
+  const [editingBugId, setEditingBugId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<Pick<BugReport, 'expectedResult' | 'actualResult' | 'notes' | 'ticket'> | null>(
+    null,
+  )
+
+  const startEdit = (bug: BugReport) => {
+    setEditingBugId(bug.id)
+    setDraft({
+      expectedResult: bug.expectedResult,
+      actualResult: bug.actualResult,
+      notes: bug.notes,
+      ticket: bug.ticket,
+    })
+  }
+
+  const cancelEdit = () => {
+    setEditingBugId(null)
+    setDraft(null)
+  }
+
+  const saveEdit = () => {
+    if (!editingBugId || !draft) {
+      return
+    }
+    onUpdateBug(editingBugId, draft)
+    setEditingBugId(null)
+    setDraft(null)
+  }
+
   if (bugs.length === 0) {
     return (
       <section className="bug-list">
@@ -42,25 +74,124 @@ export function BugList({ bugs }: BugListProps) {
                     </strong>
                     <p>{new Date(bug.timestamp).toLocaleString('ru-RU')}</p>
                   </div>
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      navigator.clipboard.writeText(bug.ticket).catch(() => undefined)
-                    }}
-                  >
-                    {locale.ui.actions.copyTicket}
-                  </button>
+                  <div className="bug-item__actions">
+                    <button
+                      className="secondary"
+                      onClick={() => {
+                        navigator.clipboard.writeText(bug.ticket).catch(() => undefined)
+                      }}
+                    >
+                      {locale.ui.actions.copyTicket}
+                    </button>
+                    {editingBugId === bug.id ? (
+                      <>
+                        <button onClick={saveEdit}>{locale.ui.actions.save}</button>
+                        <button className="secondary" onClick={cancelEdit}>
+                          {locale.ui.actions.cancel}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="secondary" onClick={() => startEdit(bug)}>
+                          {locale.ui.actions.edit}
+                        </button>
+                        <button className="secondary" onClick={() => onDeleteBug(bug.id)}>
+                          {locale.ui.actions.delete}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </header>
 
                 <div className="bug-item__grid">
-                  <p>
-                    <strong>{locale.ui.labels.expected}:</strong> {bug.expectedResult}
-                  </p>
-                  <p className="bug-item__actual">
-                    <strong>{locale.ui.labels.actual}:</strong> {bug.actualResult}
-                  </p>
+                  {editingBugId === bug.id && draft ? (
+                    <>
+                      <label>
+                        <strong>{locale.ui.labels.expected}:</strong>
+                        <textarea
+                          rows={3}
+                          value={draft.expectedResult}
+                          onChange={(event) =>
+                            setDraft((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    expectedResult: event.target.value,
+                                  }
+                                : prev,
+                            )
+                          }
+                        />
+                      </label>
+                      <label className="bug-item__actual">
+                        <strong>{locale.ui.labels.actual}:</strong>
+                        <textarea
+                          rows={3}
+                          value={draft.actualResult}
+                          onChange={(event) =>
+                            setDraft((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    actualResult: event.target.value,
+                                  }
+                                : prev,
+                            )
+                          }
+                        />
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        <strong>{locale.ui.labels.expected}:</strong> {bug.expectedResult}
+                      </p>
+                      <p className="bug-item__actual">
+                        <strong>{locale.ui.labels.actual}:</strong> {bug.actualResult}
+                      </p>
+                    </>
+                  )}
                 </div>
-                <textarea value={bug.ticket} readOnly rows={7} />
+                {editingBugId === bug.id && draft ? (
+                  <>
+                    <label>
+                      <strong>{locale.ui.labels.notes}:</strong>
+                      <textarea
+                        rows={2}
+                        value={draft.notes}
+                        onChange={(event) =>
+                          setDraft((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  notes: event.target.value,
+                                }
+                              : prev,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <strong>{locale.ui.labels.ticketPreview}:</strong>
+                      <textarea
+                        rows={7}
+                        value={draft.ticket}
+                        onChange={(event) =>
+                          setDraft((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  ticket: event.target.value,
+                                }
+                              : prev,
+                          )
+                        }
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <textarea value={bug.ticket} readOnly rows={7} />
+                )}
               </article>
             ))}
         </section>
