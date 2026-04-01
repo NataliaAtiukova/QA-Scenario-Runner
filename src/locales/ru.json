@@ -14,7 +14,8 @@
       "bugs": "Баг-репорты",
       "smokeEditor": "Редактор смоков",
       "scenarioEditor": "Редактор сценариев",
-      "templateEditors": "Редактирование шаблонов"
+      "templateEditors": "Редактирование шаблонов",
+      "editorTools": "Инструменты"
     },
     "navigation": {
       "run": "Режим запуска",

@@ -75,7 +75,7 @@ export function SmokeEditor({
     <section className="smoke-editor">
       <header className="section-title">
         <h2>{title}</h2>
-        <div className="template-actions">
+        <div className="template-actions editor-header-actions">
           <button className="secondary" onClick={onCreateTemplate}>
             {createLabel}
           </button>
@@ -102,7 +102,8 @@ export function SmokeEditor({
       <p className="meta">{locale.ui.messages.editorHint}</p>
       {isDirty && <p className="notice">{locale.ui.messages.unsavedChanges}</p>}
 
-      <div className="editor-tools">
+      <div className="editor-tools editor-panel">
+        <strong className="editor-panel__title">{locale.ui.sections.editorTools}</strong>
         <button className="secondary" onClick={() => jsonInputRef.current?.click()}>
           {locale.ui.actions.importJson}
         </button>
@@ -168,26 +169,36 @@ export function SmokeEditor({
 
       {activeTemplate && (
         <div className="template-editor">
-          <label>
-            {locale.ui.labels.templateName}
-            <input
-              value={activeTemplate.name}
-              onChange={(event) => onUpdateTemplateName(activeTemplate.id, event.target.value)}
-            />
-          </label>
+          <div className="editor-panel">
+            <strong className="editor-panel__title">{locale.ui.labels.templateName}</strong>
+            <label>
+              {locale.ui.labels.templateName}
+              <input
+                value={activeTemplate.name}
+                onChange={(event) => onUpdateTemplateName(activeTemplate.id, event.target.value)}
+              />
+            </label>
 
-          <div className="template-actions">
-            <button className="secondary" onClick={() => onDuplicateTemplate(activeTemplate.id)}>
-              {locale.ui.actions.duplicateTemplate}
-            </button>
-            <button className="secondary" onClick={() => onDeleteTemplate(activeTemplate.id)}>
-              {locale.ui.actions.deleteTemplate}
-            </button>
+            <div className="template-actions">
+              <button className="secondary" onClick={() => onDuplicateTemplate(activeTemplate.id)}>
+                {locale.ui.actions.duplicateTemplate}
+              </button>
+              <button className="secondary" onClick={() => onDeleteTemplate(activeTemplate.id)}>
+                {locale.ui.actions.deleteTemplate}
+              </button>
+            </div>
           </div>
 
-          <div className="step-editor-list">
+          <div className="step-editor-list editor-panel">
+            <strong className="editor-panel__title">{locale.ui.labels.stepName}</strong>
             {activeTemplate.steps.map((step, stepIndex) => (
               <article key={step.id} className="step-editor-card">
+                <div className="step-editor-card__header">
+                  <strong>
+                    {locale.ui.labels.step} {stepIndex + 1}
+                  </strong>
+                </div>
+
                 <label>
                   {locale.ui.labels.stepName}
                   <input
@@ -221,25 +232,28 @@ export function SmokeEditor({
                   </button>
                 </div>
 
-                {step.checks.map((check, checkIndex) => (
-                  <label key={`${step.id}-${checkIndex}`}>
-                    {locale.ui.labels.checkName}
-                    <div className="check-row">
-                      <input
-                        value={check}
-                        onChange={(event) =>
-                          onUpdateCheck(activeTemplate.id, stepIndex, checkIndex, event.target.value)
-                        }
-                      />
-                      <button
-                        className="secondary"
-                        onClick={() => onDeleteCheck(activeTemplate.id, stepIndex, checkIndex)}
-                      >
-                        {locale.ui.actions.deleteCheck}
-                      </button>
-                    </div>
-                  </label>
-                ))}
+                <div className="step-checks-block">
+                  <strong className="step-checks-title">{locale.ui.labels.checklist}</strong>
+                  {step.checks.map((check, checkIndex) => (
+                    <label key={`${step.id}-${checkIndex}`}>
+                      {locale.ui.labels.checkName}
+                      <div className="check-row">
+                        <input
+                          value={check}
+                          onChange={(event) =>
+                            onUpdateCheck(activeTemplate.id, stepIndex, checkIndex, event.target.value)
+                          }
+                        />
+                        <button
+                          className="secondary"
+                          onClick={() => onDeleteCheck(activeTemplate.id, stepIndex, checkIndex)}
+                        >
+                          {locale.ui.actions.deleteCheck}
+                        </button>
+                      </div>
+                    </label>
+                  ))}
+                </div>
 
                 <button
                   className="secondary"

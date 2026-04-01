@@ -620,6 +620,26 @@ textarea {
   flex-wrap: wrap;
 }
 
+.editor-header-actions {
+  align-items: flex-end;
+}
+
+.editor-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: var(--surface-muted);
+}
+
+.editor-panel__title {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .hidden-input {
   display: none;
 }
@@ -658,6 +678,32 @@ textarea {
   padding: 0.65rem;
   display: grid;
   gap: 0.5rem;
+  background: var(--surface);
+}
+
+.step-editor-card + .step-editor-card {
+  border-top: 3px solid var(--accent);
+}
+
+.step-editor-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed var(--border);
+}
+
+.step-checks-block {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 0.55rem;
+  background: var(--surface-muted);
+}
+
+.step-checks-title {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.9rem;
 }
 
 .check-row {
