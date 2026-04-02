@@ -94,6 +94,7 @@ export function ScenarioRunner({
             disabled={!allChecksDone}
             title={!allChecksDone ? locale.ui.messages.completeChecks : locale.ui.actions.pass}
           >
+            <span className="btn-ic">✓</span>
             {locale.ui.actions.pass}
           </button>
           <button
@@ -103,9 +104,11 @@ export function ScenarioRunner({
               onOpenBugForCurrentStep()
             }}
           >
+            <span className="btn-ic">✕</span>
             {locale.ui.actions.fail}
           </button>
           <button className="secondary step-reset" onClick={() => onSetStepStatus(step.id, 'pending')}>
+            <span className="btn-ic">↺</span>
             {locale.ui.actions.resetStep}
           </button>
         </div>
@@ -113,6 +116,7 @@ export function ScenarioRunner({
 
       <footer className="runner__footer">
         <button className="secondary" onClick={() => onNavigateStep('prev')} disabled={currentStepIndex === 0}>
+          <span className="btn-ic">←</span>
           {locale.ui.actions.previous}
         </button>
         <button
@@ -120,13 +124,16 @@ export function ScenarioRunner({
           onClick={() => onNavigateStep('next')}
           disabled={currentStepIndex === test.steps.length - 1 || !canGoNext}
         >
+          <span className="btn-ic">→</span>
           {locale.ui.actions.next}
         </button>
         <button className="secondary" onClick={onRestart}>
+          <span className="btn-ic">↻</span>
           {locale.ui.actions.startOver}
         </button>
         {onNextSmoke && (
           <button className="secondary" onClick={onNextSmoke}>
+            <span className="btn-ic">⇢</span>
             {locale.ui.actions.nextSmoke}
           </button>
         )}

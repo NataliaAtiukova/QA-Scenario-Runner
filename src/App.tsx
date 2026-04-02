@@ -693,6 +693,7 @@ function App() {
     { id: 'scenario' as const, label: locale.ui.sections.scenarios },
     { id: 'bugs' as const, label: locale.ui.sections.bugs },
   ]
+  const isEmbedded = window.self !== window.top
 
   const renderRunMode = () => (
     <>
@@ -708,7 +709,10 @@ function App() {
               <section className="sidebar-section">
                 <div className="section-title">
                   <h2>{locale.ui.sections.smoke}</h2>
-                  <button onClick={runAllSmokeTests}>{locale.ui.actions.runAllSmoke}</button>
+                  <button onClick={runAllSmokeTests}>
+                    <span className="btn-ic">▶</span>
+                    {locale.ui.actions.runAllSmoke}
+                  </button>
                 </div>
                 <SmokeSummary runs={progressState} smokeIds={smokeTests.map((test) => test.id)} />
                 <div className="test-list">
@@ -1145,45 +1149,65 @@ function App() {
   return (
     <main className="app">
       <header className="page-header">
-        <div className="header-left">
-          {route === '/run' ? (
-            <nav className="run-tabs">
-              {runTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`secondary run-tab ${runTab === tab.id ? 'run-tab--active' : ''}`}
-                  onClick={() => switchRunTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          ) : (
-            <h1>{locale.ui.sections.templateEditors}</h1>
-          )}
-        </div>
+        {!isEmbedded && (
+          <div className="header-main">
+            <div className="header-title">
+              <h1>{locale.ui.appTitle}</h1>
+              <p className="header-subtitle">Smoke + Scenario Runner</p>
+            </div>
+            <div className="status-strip">
+              <span className={`chip ${route === '/run' ? 'chip--ok' : 'chip--warn'}`}>
+                Режим: {route === '/run' ? 'Запуск' : 'Редактор'}
+              </span>
+              <span className="chip chip--info">Тема: {theme === 'light' ? 'Light' : 'Dark'}</span>
+            </div>
+          </div>
+        )}
 
-        <div className="header-actions">
-          {route === '/run' ? (
-            <button className="secondary" onClick={() => navigate('/edit')}>
-              {locale.ui.actions.openSmokeEditor}
-            </button>
-          ) : (
-            <button className="secondary" onClick={() => navigate('/run')}>
-              {locale.ui.actions.backToRun}
-            </button>
-          )}
+        <div className="header-bar">
+          <div className="header-left">
+            {route === '/run' ? (
+              <nav className="run-tabs">
+                {runTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    className={`secondary run-tab ${runTab === tab.id ? 'run-tab--active' : ''}`}
+                    onClick={() => switchRunTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            ) : (
+              <h2 className="editor-title">{locale.ui.sections.templateEditors}</h2>
+            )}
+          </div>
 
-          <label className="theme-toggle">
-            <button
-              type="button"
-              className="secondary theme-icon-button"
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-              title={locale.ui.theme.label}
-            >
-              {theme === 'light' ? '◐' : '◑'}
-            </button>
-          </label>
+          <div className="header-actions">
+            {route === '/run' ? (
+              <button className="secondary" onClick={() => navigate('/edit')}>
+                <span className="btn-ic">✎</span>
+                {locale.ui.actions.openSmokeEditor}
+              </button>
+            ) : (
+              <button className="secondary" onClick={() => navigate('/run')}>
+                <span className="btn-ic">←</span>
+                {locale.ui.actions.backToRun}
+              </button>
+            )}
+
+            <label className="theme-toggle">
+              <button
+                type="button"
+                className="secondary theme-icon-button"
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                title={locale.ui.theme.label}
+              >
+                <span className="btn-ic">{theme === 'light' ? '◐' : '◑'}</span>
+                Тема
+              </button>
+            </label>
+          </div>
         </div>
       </header>
 

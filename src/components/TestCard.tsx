@@ -52,6 +52,7 @@ export function TestCard({
             onRun(test.id)
           }}
         >
+          <span className="btn-ic">▶</span>
           {locale.ui.actions.run}
         </button>
         {onEdit && (
@@ -62,6 +63,7 @@ export function TestCard({
               onEdit(test.id)
             }}
           >
+            <span className="btn-ic">✎</span>
             {isSmoke ? locale.ui.actions.editSmoke : locale.ui.actions.editScenario}
           </button>
         )}
@@ -73,6 +75,7 @@ export function TestCard({
               onRerunFromFailed(test.id, failedStepIndex)
             }}
           >
+            <span className="btn-ic">↻</span>
             {locale.ui.actions.rerunFromFailed}
           </button>
         )}
